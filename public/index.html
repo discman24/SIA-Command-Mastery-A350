@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0a0f1e"/>
+<meta name="description" content="A350 Non-Normal Scenario Mastery — Command Training Edition. 100+ scenarios, CBTA assessment, flight simulation."/>
+<title>A350 Non-Normal Mastery ★★★★</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<link rel="icon" type="image/png" sizes="64x64" href="icon-64.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body,#root{min-height:100vh;min-height:100dvh;background:#0a0f1e;font-family:'Inter',system-ui,sans-serif;color:#e2e8f0;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0f1e}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:4px}
+input{font-family:inherit}button{font-family:inherit}
+@media(max-width:640px){.hide-mobile{display:none !important}.grid-cols-4{grid-template-columns:repeat(2,1fr) !important}}
+@supports(padding:max(0px)){.safe-bottom{padding-bottom:max(16px,env(safe-area-inset-bottom))}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+
+/* ══════════════════════════════════════════════════════════════════
+   A350 NON-NORMAL MASTERY — PWA COMMAND TRAINING EDITION
+   Version 2.0 · Mobile/Tablet Optimized · Offline Ready
+   ══════════════════════════════════════════════════════════════════ */
+const{useState,useEffect,useMemo,useCallback}=React;
+
+// ─── PERSISTENCE ──────────────────────────────────────────────────
+const LS={
+  get(k,d){try{const v=localStorage.getItem('a350m_'+k);return v?JSON.parse(v):d}catch{return d}},
+  set(k,v){try{localStorage.setItem('a350m_'+k,JSON.stringify(v))}catch{}}
+};
+
+// ─── CBTA ─────────────────────────────────────────────────────────
+const C={KNO:{n:"Application of Knowledge",c:"#3b82f6",i:"📘"},APC:{n:"Application of Procedures",c:"#10b981",i:"📋"},COM:{n:"Communication",c:"#f59e0b",i:"📡"},FPA:{n:"Flight Path Mgmt-Auto",c:"#8b5cf6",i:"🤖"},FPM:{n:"Flight Path Mgmt-Manual",c:"#ef4444",i:"✈️"},LTW:{n:"Leadership & Teamwork",c:"#06b6d4",i:"👥"},PDM:{n:"Problem Solving & Decision",c:"#d946ef",i:"🧠"},SAW:{n:"Situational Awareness",c:"#f97316",i:"👁️"},WLM:{n:"Workload Management",c:"#14b8a6",i:"⚖️"},PDI:{n:"Professional Discipline",c:"#64748b",i:"🎖️"}};
+
+// ─── PHASES ───────────────────────────────────────────────────────
+const P=[
+  {id:"preflight",n:"Pre-Flight",i:"🔍",c:"#1e40af",s:0,e:0},
+  {id:"before_start",n:"Before Start",i:"⚙️",c:"#1d4ed8",s:0,e:2},
+  {id:"engine_start",n:"Engine Start",i:"🔥",c:"#2563eb",s:2,e:5},
+  {id:"after_start",n:"After Start",i:"✅",c:"#3b82f6",s:5,e:7},
+  {id:"taxi_out",n:"Taxi Out",i:"🛞",c:"#60a5fa",s:7,e:15},
+  {id:"takeoff",n:"Takeoff",i:"🛫",c:"#dc2626",s:15,e:17},
+  {id:"initial_climb",n:"Initial Climb",i:"📈",c:"#ea580c",s:17,e:22},
+  {id:"climb",n:"Climb",i:"⬆️",c:"#f59e0b",s:22,e:32},
+  {id:"cruise",n:"Cruise",i:"✈️",c:"#16a34a",s:32,e:42},
+  {id:"descent",n:"Descent",i:"⬇️",c:"#0d9488",s:42,e:50},
+  {id:"approach",n:"Approach",i:"🎯",c:"#7c3aed",s:50,e:55},
+  {id:"landing",n:"Landing",i:"🛬",c:"#be185d",s:55,e:57},
+  {id:"after_landing",n:"After Landing",i:"🅿️",c:"#4b5563",s:57,e:60}
+];
+
+const CT={technical:{l:"Technical",c:"#3b82f6",i:"🔧"},passenger:{l:"Passenger",c:"#a855f7",i:"🧑‍🤝‍🧑"},cabin:{l:"Cabin/Crew",c:"#f472b6",i:"💺"},operational:{l:"Operational",c:"#f59e0b",i:"📋"},weather:{l:"Weather",c:"#06b6d4",i:"🌩️"},security:{l:"Security",c:"#ef4444",i:"🔒"},medical:{l:"Medical",c:"#22c55e",i:"🏥"},atc:{l:"ATC/Comms",c:"#8b5cf6",i:"📻"}};
+const SV={emergency:{l:"EMERGENCY",c:"#dc2626",p:30},warning:{l:"WARNING",c:"#ea580c",p:20},caution:{l:"CAUTION",c:"#ca8a04",p:10},advisory:{l:"ADVISORY",c:"#3b82f6",p:5}};
+
+// ─── DOCUMENT REFERENCE LIBRARY ──────────────────────────────────
+const DOCS={
+  "FCTM-RTO":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-MISC — Rejected Takeoff",pg:"PG01396"},
+  "FCTM-EAV1":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-ENG-10-3 — Engine Failure After V1",pg:"PG01398"},
+  "FCTM-WS":{doc:"A350 FCTM Rev 12",sec:"PR-NP-SP-10-10-2 — Windshear"},
+  "FCTM-ED":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-MISC — Emergency Descent"},
+  "FCTM-ECAM":{doc:"A350 FCTM Rev 12",sec:"AOP-30-30 — Handling of ECAM/QRH/OEB Procedures",pg:"P 1/8"},
+  "FCTM-GA":{doc:"A350 FCTM Rev 12",sec:"PR-NP-SOP-210 — Go-Around"},
+  "FCTM-STALL":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-MISC — Stall Recovery",pg:"PG02415"},
+  "FCTM-UAS":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-NAV — Unreliable Air Speed Indication"},
+  "FCTM-TCAS":{doc:"A350 FCTM Rev 12",sec:"AS-TCAS — TCAS Operating Techniques"},
+  "FCTM-INCAP":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-MISC — Flight Crew Incapacitation"},
+  "FCTM-LOB":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-LDG — Loss of Braking"},
+  "FCTM-ABLG":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-LDG — Landing with Abnormal L/G"},
+  "FCTM-OWL":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-MISC — Overweight Landing"},
+  "FCTM-FSF":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-FIRE — Fire Smoke / Fumes",pg:"PG02418"},
+  "FCTM-VA":{doc:"A350 FCTM Rev 12",sec:"PR-NP-SP-10-10-5 — Volcanic Ash, Sand or Dust"},
+  "FCTM-TURB":{doc:"A350 FCTM Rev 12",sec:"PR-NP-SP-10-10-3 — Weather Turbulence"},
+  "FCTM-WR":{doc:"A350 FCTM Rev 12",sec:"PR-NP-SOP-50 — Exterior Walkaround"},
+  "FCTM-TAXI":{doc:"A350 FCTM Rev 12",sec:"PR-NP-SOP-100 — Taxi (Brakes & Flight Controls)"},
+  "FCTM-ESTART":{doc:"A350 FCTM Rev 12",sec:"PR-NP-SP-20 — Engine Start (Manual)"},
+  "FCTM-FMS":{doc:"A350 FCTM Rev 12",sec:"PR-NP-SOP-60 — Cockpit Prep / FMS Preparation"},
+  "FCTM-DISP":{doc:"A350 FCTM Rev 12",sec:"AOP-30-45 — Handling of Dispatch Messages"},
+  "FCTM-BRIEF":{doc:"A350 FCTM Rev 12",sec:"AOP-20 — Tasksharing / Departure Briefing"},
+  "FCTM-GY":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-LDG — G+Y Hydraulic Failure Landing"},
+  "FCTM-LIFIRE":{doc:"A350 FCTM Rev 12",sec:"QRH SMOKE/FIRE FROM LITHIUM BATTERY"},
+  "FCTM-FUEL":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-FUEL — Fuel Leak / Imbalance"},
+  "FCTM-TIRE":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-LDG — Wheel Tire Damage"},
+  "FCTM-AEF":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-ENG — All Engines Failure"},
+  "FCTM-EFC":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-ENG — Engine Failure in Cruise"},
+  "FCTM-XW":{doc:"A350 FCTM Rev 12",sec:"PR-NP-SOP — Crosswind Landing Technique"},
+  "FCTM-EVAC":{doc:"A350 FCTM Rev 12",sec:"PR-AEP-MISC — Emergency Evacuation"},
+  "FCOM-MEM":{doc:"SIA FCOM Rev 18A",sec:"PRO-ABN-ABN-MEM — Memory Items"},
+  "FCOM-TCAS":{doc:"SIA FCOM Rev 18A",sec:"PRO-ABN-SURV — [MEM] TCAS WARNING RA"},
+  "FCOM-TURB":{doc:"SIA FCOM Rev 18A",sec:"PRO-ABN-MISC — [ABN] MISC SEVERE TURBULENCE"},
+  "FCOM-HYD":{doc:"SIA FCOM Rev 18A",sec:"PRO-ABN-HYD — Hydraulic System Abnormal"},
+  "FCOM-ELEC":{doc:"SIA FCOM Rev 18A",sec:"PRO-ABN-ELEC — Electrical Abnormal"},
+  "FCOM-DOOR":{doc:"SIA FCOM Rev 18A",sec:"FCOM Door System / DOOR SD Page"},
+  "FCOM-ENG":{doc:"SIA FCOM Rev 18A",sec:"PRO-ABN-ENG — Engine Abnormal Procedures"},
+  "FCOM-CFG":{doc:"SIA FCOM Rev 18A",sec:"PRO-ABN-CONFIG — Configuration Warnings"},
+  "SQNP-CO":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SCO — Standard Callouts",pg:"P 11/16"},
+  "SQNP-TAXI":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SOP-100 — Taxi / Brake Check / Cabin Ready"},
+  "SQNP-BS":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SOP-70 — Before Pushback / Loadsheet"},
+  "SQNP-ES":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SOP-80 — Engine Start"},
+  "SQNP-AS":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SOP-90 — After Start"},
+  "SQNP-FMS":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SOP-40/60 — Cockpit Prep / FMS Init & Crosscheck"},
+  "SQNP-PREFLT":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SOP-40/50 — Prelim Cockpit Prep & Walkaround"},
+  "SQNP-GA":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SOP-260 — Go-Around"},
+  "SQNP-FJ":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SOP-10 — Fuel Jettison"},
+  "SQNP-APP":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SOP-230-A — Approach General / Arrival Announcement"},
+  "SQNP-LU":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-C-L — Line-Up Checklist"},
+  "SQNP-PARK":{doc:"SIA SQNP Rev 18",sec:"PRO-NOR-SCO — Parking / Doors to Disarm"},
+  "SQSP-TCAS":{doc:"SIA SQSP Rev 18",sec:"SQSP — TCAS (TA ONLY selection criteria)"},
+  "SQSP-FIRE":{doc:"SIA SQSP Rev 18",sec:"SQSP — In-Flight Cabin Smoke or Fire"},
+  "SQSP-DEPR":{doc:"SIA SQSP Rev 18",sec:"SQSP — Depressurisation Escape Manoeuvre"},
+  "SQI-PA":{doc:"SIA SQI Rev 18",sec:"Chapter 130 — Normal Announcements / PA Scripts"},
+  "SQI-EMER":{doc:"SIA SQI Rev 18",sec:"Chapter 131 — Bomb Threat Announcements"},
+  "SQI-EMER2":{doc:"SIA SQI Rev 18",sec:"Chapter 140 — Emergency Announcements"},
+  "SQI-VR":{doc:"SIA SQI Rev 18",sec:"Chapter 40 — VR/Delay Codes"},
+  "SQI-HL":{doc:"SIA SQI Rev 18",sec:"SQI — Hard Landing Reporting Phraseologies"},
+  "OM-MEL":{doc:"SIA OM Rev 31",sec:"Ch 13.5 Sec 1 — Commander's Acceptance / MEL"},
+  "OM-WR":{doc:"SIA OM Rev 31",sec:"Ch 13.5 Sec 13 — Exterior Inspection / Walkaround"},
+  "OM-LS":{doc:"SIA OM Rev 31",sec:"Ch 13.5 Sec 6/8 — Loadsheet / ACARS Loadsheet"},
+  "OM-DOOR":{doc:"SIA OM Rev 31",sec:"Ch 13.1 Sec 15 — Cabin Doors / Arming / Disarming"},
+  "OM-MED":{doc:"SIA OM Rev 31",sec:"Ch 11 Sec 7 — Injury or Illness Inflight"},
+  "OM-TMED":{doc:"SIA OM Rev 31",sec:"Ch 13.6 Sec 36 — Tele-Medical Support Services"},
+  "OM-DEATH":{doc:"SIA OM Rev 31",sec:"Ch 11 Sec 10 — Births and Deaths on Board"},
+  "OM-SEC":{doc:"SIA OM Rev 31",sec:"Ch 10 — Security"},
+  "OM-CREW":{doc:"SIA OM Rev 31",sec:"Ch 5 — Crew Composition / Minimum Cabin Crew"},
+  "OM-WX":{doc:"SIA OM Rev 31",sec:"Ch 13.5 — Weather Minima / Fuel Policy"},
+  "OM-BRIEF":{doc:"SIA OM Rev 31",sec:"Ch 13.1 Sec 13 — Departure & Approach Briefings"},
+  "OM-DLY":{doc:"SIA OM Rev 31",sec:"Ch 11 Sec 6 — Delay Reporting / ACARS Codes"},
+  "OM-PA":{doc:"SIA OM Rev 31",sec:"Ch 13.1 Sec 19.9.7 — PA System Related Delays"},
+  "OM-UNRULY":{doc:"SIA OM Rev 31",sec:"Ch 13 — Unruly/Intoxicated Passengers / Commander's Authority"},
+  "OM-TRAUMA":{doc:"SIA OM Rev 31",sec:"Ch 11 — Traumatic Inflight Incidents"},
+  "OM-ESTART":{doc:"SIA OM Rev 31",sec:"Ch 13.5 Sec 17 — Engine Start During Pushback"},
+  "OM-STERILE":{doc:"SIA OM Rev 31",sec:"Ch 13 — Sterile Flight Deck Below 10,000ft"},
+  "OM-CABIN":{doc:"SIA OM Rev 31",sec:"Ch 13.6 Sec 8.3.5 — Cabin Ready Signal"},
+  "OM-FUEL":{doc:"SIA OM Rev 31",sec:"Ch 13 — Fuel Policy / Minimum Fuel / MAYDAY FUEL"},
+  "CBTA-1":{doc:"CBTA Markers 1",sec:"KNO, APC, COM, FPA, FPM — Observable Behaviors"},
+  "CBTA-2":{doc:"CBTA Markers 2",sec:"LTW, PDM, SAW, WLM, PDI — Observable Behaviors & 5-Point Scale"}
+};
+
+// ─── SCENARIO BANK (100 scenarios) ────────────────────────────────
+// Auto-resolve document references from rf field
+const REF_MAP={
+  "SIA OM / FCOM MEL":["OM-MEL","FCTM-DISP","SQNP-PREFLT"],
+  "FCTM Walkaround / SIA OM":["FCTM-WR","OM-WR","SQNP-PREFLT"],
+  "SQNP FMS Preparation":["SQNP-FMS","FCTM-FMS"],
+  "SIA OM Weather / Fuel Policy":["OM-WX","OM-FUEL"],
+  "SIA OM Commander's Responsibilities":["OM-MED","OM-UNRULY","OM-PA"],
+  "SIA OM Offloading / ACARS Delays":["OM-DLY","SQI-VR","OM-UNRULY"],
+  "SIA OM Commander's Authority":["OM-UNRULY","OM-SEC"],
+  "SIA OM Minimum Cabin Crew":["OM-CREW"],
+  "SIA OM Departure / Delay Management":["OM-DLY","OM-PA","SQI-VR"],
+  "SIA OM Security":["OM-SEC","SQI-EMER"],
+  "SIA OM Unruly Passengers":["OM-UNRULY"],
+  "SIA OM Special Passengers / MEDIF":["OM-MED","OM-TMED"],
+  "FCTM EFB / SIA OM MEL":["OM-MEL","FCTM-DISP"],
+  "SIA OM Medical / Commander's Discretion":["OM-MED","OM-TMED"],
+  "SQNP Before Start / FCOM Performance":["SQNP-BS","OM-LS"],
+  "SIA OM Passenger Reconciliation / ICAO Annex 17":["OM-SEC"],
+  "SIA OM Flow Control / SQNP ATC Delays":["OM-DLY","SQI-VR","OM-PA"],
+  "FCOM Engine Start / FCTM":["FCTM-ESTART","SQNP-ES","FCOM-ENG"],
+  "ECAM ENG FIRE / FCTM Fire":["FCTM-FSF","FCOM-ENG","FCOM-MEM"],
+  "SQNP Engine Start":["SQNP-ES","OM-ESTART"],
+  "FCTM Flight Controls Check":["FCTM-TAXI","SQNP-AS"],
+  "SQNP Door Verification / FCOM":["FCOM-DOOR","OM-DOOR","SQNP-PARK"],
+  "FCTM Taxi / SQNP Brake Check":["FCTM-TAXI","SQNP-TAXI"],
+  "SIA OM Runway Safety / FCTM Taxi":["FCTM-TAXI","OM-SEC"],
+  "SIA OM Passenger Management":["OM-UNRULY","OM-PA"],
+  "SQNP Taxi / FCTM Departure":["SQNP-TAXI","FCTM-BRIEF"],
+  "SQNP Pre-Takeoff / FCOM CONFIG":["SQNP-LU","FCOM-CFG"],
+  "SQNP Taxi / SIA OM Cabin Ready":["SQNP-TAXI","OM-CABIN"],
+  "FCTM RTO / SQNP Callouts":["FCTM-RTO","SQNP-CO"],
+  "FCTM Engine Failure After V1":["FCTM-EAV1","SQNP-CO","FCTM-ECAM"],
+  "FCTM Windshear":["FCTM-WS","SQNP-CO"],
+  "FCTM Wheel Tire Damage":["FCTM-TIRE","FCTM-ABLG"],
+  "SQNP Stall / FCTM Stall Recovery":["FCTM-STALL","SQNP-CO","FCOM-MEM"],
+  "FCTM TCAS RA / SQSP":["FCTM-TCAS","FCOM-TCAS","SQSP-TCAS"],
+  "FCTM Bird Strike":["FCTM-AEF","FCOM-ENG"],
+  "FCTM All Engines Failure":["FCTM-AEF","FCOM-MEM"],
+  "ECAM ENG FIRE / FCTM Fire":["FCTM-FSF","FCOM-ENG","FCOM-MEM"],
+  "FCTM ECAM Philosophy / 400ft Rule":["FCTM-ECAM"],
+  "SIA OM Medical / Return Decision":["OM-MED","OM-TMED"],
+  "FCTM Lavatory Smoke / ECAM":["FCTM-FSF","SQSP-FIRE"],
+  "FCTM Unreliable Airspeed / QRH":["FCTM-UAS","FCOM-MEM"],
+  "FCTM Emergency Descent":["FCTM-ED","FCOM-MEM","SQSP-DEPR"],
+  "FCTM FIRE SMOKE FUMES / SQSP":["FCTM-FSF","SQSP-FIRE"],
+  "SIA OM Medical / Tele-Medical":["OM-MED","OM-TMED"],
+  "SIA OM Infectious Disease":["OM-MED"],
+  "FCTM Fuel / SIA OM Fuel Policy":["FCTM-FUEL","OM-FUEL"],
+  "FCTM Engine Failure Cruise":["FCTM-EFC","FCOM-ENG"],
+  "FCTM Severe Turbulence / SQSP":["FCTM-TURB","FCOM-TURB","SQI-PA"],
+  "SIA OM Death on Board":["OM-DEATH"],
+  "SIA OM Security / SQI Announcements":["OM-SEC","SQI-EMER","SQI-EMER2"],
+  "FCTM TCAS RA":["FCTM-TCAS","FCOM-TCAS","SQSP-TCAS"],
+  "FCTM Crew Incapacitation":["FCTM-INCAP"],
+  "FCTM Lithium Battery / QRH":["FCTM-LIFIRE","SQSP-FIRE"],
+  "FCTM Volcanic Ash / SIA OM":["FCTM-VA"],
+  "FCTM Emergency Descent / SQSP":["FCTM-ED","FCOM-MEM","SQSP-DEPR"],
+  "SIA OM Weather / Fuel Policy":["OM-WX","OM-FUEL"],
+  "SIA OM Medical Diversion":["OM-MED","OM-TMED"],
+  "SQNP Fuel Jettison / FCTM":["SQNP-FJ"],
+  "FCTM Go-Around / Stabilized Criteria":["FCTM-GA","SQNP-GA","SQNP-CO"],
+  "FCTM Approach / ILS":["FCTM-GA"],
+  "FCTM OEI Approach":["FCTM-EAV1","FCTM-GA"],
+  "SIA OM Cabin Ready / SQNP":["OM-CABIN","SQNP-TAXI"],
+  "FCTM Approach / ATC":["FCTM-GA","SQNP-APP"],
+  "SIA OM Fuel Policy":["OM-FUEL"],
+  "FCTM Loss of Braking":["FCTM-LOB","SQNP-CO","FCOM-MEM"],
+  "FCTM Abnormal Landing Gear":["FCTM-ABLG"],
+  "FCTM Overweight Landing":["FCTM-OWL","SQNP-CO"],
+  "FCTM Landing / SQI Hard Landing":["SQI-HL","FCTM-XW"],
+  "FCTM Crosswind Landing":["FCTM-XW"],
+  "FCTM G+Y Hydraulic Failure":["FCTM-GY","FCOM-HYD"],
+  "FCTM EMER EVAC":["FCTM-EVAC","FCOM-MEM"],
+  "FCTM After Landing":["FCTM-TAXI"],
+  "SIA OM Security Procedures":["OM-SEC","SQI-EMER"],
+  "SIA OM Incident Reporting":["OM-TRAUMA"],
+  "SQNP Door Disarming / FCOM":["SQNP-PARK","FCOM-DOOR","OM-DOOR"],
+  "SIA OM Traumatic Incidents":["OM-TRAUMA","SQI-PA"],
+  "SIA OM Medical":["OM-MED","OM-TMED"],
+  "SIA OM Passenger Care":["OM-PA","OM-MED"]
+};
+const getDocs=(rf)=>(REF_MAP[rf]||[]).map(k=>DOCS[k]).filter(Boolean);
+const B=[
+// PRE-FLIGHT
+{id:"PF01",ph:"preflight",ct:"technical",sv:"caution",t:"Multiple MEL Items Affecting Dispatch",d:"Three MEL items: one pack inop, weather radar degraded, one VHF radio u/s.",pr:"Review each MEL then assess COMBINED effect. Compute performance penalties. Verify time limits. Cross-check route requirements (ETOPS/RVSM). Brief FO. Go/no-go decision.",m:[],cb:["KNO","APC","PDM","SAW"],rs:"Correctly compute cumulative penalties, identify prohibiting combinations, conservative decision with FO involvement.",rf:"SIA OM / FCOM MEL"},
+{id:"PF02",ph:"preflight",ct:"technical",sv:"caution",t:"Walkaround: Hydraulic Leak",d:"Green hydraulic fluid pooling under left main gear during walkaround.",pr:"Document leak. Report maintenance IMMEDIATELY. Do NOT accept aircraft until cleared. Assess schedule impact. Inform SIAOCC.",m:[],cb:["KNO","APC","PDM","PDI","COM"],rs:"Refuse acceptance until maintenance confirms airworthiness. Proactive communication.",rf:"FCTM Walkaround / SIA OM"},
+{id:"PF03",ph:"preflight",ct:"operational",sv:"advisory",t:"FMS Route vs ATC Flight Plan Mismatch",d:"FMS route doesn't match filed plan. SID amended by NOTAM.",pr:"Verify ATC plan vs FMS. Check NOTAMs. Update FMS. Both crew verify independently. Call ATC if uncertain.",m:[],cb:["KNO","APC","SAW","COM"],rs:"Detect discrepancy, correct FMS, independent verification, brief amended departure.",rf:"SQNP FMS Preparation"},
+{id:"PF04",ph:"preflight",ct:"weather",sv:"caution",t:"Destination Weather Below Minima",d:"TAF shows destination below Cat I by ETA. Alternate marginal.",pr:"Assess TAF trend. Compute fuel for holding/diversion. Select second alternate. Brief complete picture. Contact dispatch.",m:[],cb:["KNO","PDM","SAW","COM","WLM"],rs:"Comprehensive assessment, adequate fuel margins, secondary alternate, clear decision criteria.",rf:"SIA OM Weather / Fuel Policy"},
+{id:"PF05",ph:"preflight",ct:"passenger",sv:"advisory",t:"Passenger Left Critical Medication at Gate",d:"After boarding, passenger distressed — left insulin at gate lounge.",pr:"Assess urgency. Contact gate staff for retrieval. If critical and cannot retrieve: delay. If unavailable: check medical kit for equivalent. Consider offloading with medical advice.",m:[],cb:["PDM","COM","LTW","WLM","PDI"],rs:"Empathetic, efficient handling. Retrieval coordinated. Passenger safety prioritized.",rf:"SIA OM Commander's Responsibilities"},
+{id:"PF06",ph:"preflight",ct:"passenger",sv:"advisory",t:"Invalid Travel Document — Offload Required",d:"Immigration reports invalid document. Passenger boarded. Must offload with bags.",pr:"CIC informs passenger sensitively. Coordinate baggage offload (delay code PQ). If agitated: CIC manages calmly. Set time limit. PA if >10min. Report SIAOCC.",m:[],cb:["COM","LTW","PDM","WLM","PDI"],rs:"Handled with dignity and efficiency. Minimize delay. Security compliance.",rf:"SIA OM Offloading / ACARS Delays"},
+{id:"PF07",ph:"preflight",ct:"passenger",sv:"advisory",t:"Passenger Left Phone at Gate After Door Close",d:"Passenger discovers phone left at charging station. Doors already closed.",pr:"Doors closed, pushback imminent: return NOT possible for personal items. CIC explains. Offer to have item secured at gate. Do NOT return for non-critical items.",m:[],cb:["PDM","COM","LTW","PDI"],rs:"Firm but empathetic. Safety and schedule over personal items.",rf:"SIA OM Commander's Authority"},
+{id:"PF08",ph:"preflight",ct:"cabin",sv:"caution",t:"Cabin Crew Sick — Minimum Crew at Risk",d:"One cabin crew reports unwell. Minimum crew complement threatened.",pr:"Assess fitness (Commander's decision). Check minimum crew for zone config. Request standby crew. If below minimum: cannot depart until replacement.",m:[],cb:["PDM","LTW","WLM","COM","PDI"],rs:"Safety-first fitness assessment. Verify regulatory minimum. Proactive standby request.",rf:"SIA OM Minimum Cabin Crew"},
+{id:"PF09",ph:"preflight",ct:"operational",sv:"advisory",t:"Late Connecting Passengers — Slot Pressure",d:"10 connecting passengers delayed. Gate requests 15-min hold. Slot time tight.",pr:"Assess CTOT situation. Compute latest departure time. Weigh commercial vs slot loss. PA to onboard passengers within 10min of delay.",m:[],cb:["PDM","COM","WLM","LTW"],rs:"Balanced decision. Clear time limit. Regular PA updates.",rf:"SIA OM Departure / Delay Management"},
+{id:"PF10",ph:"preflight",ct:"security",sv:"warning",t:"Unattended Bag in Cabin",d:"Cabin crew discovers unattended bag in overhead bin — owner unidentified.",pr:"Alert CIC. PA for owner. If unclaimed 2min: security threat. Inform ATC/airport security. Consider deplaning for sweep.",m:[],cb:["PDM","COM","LTW","SAW","PDI"],rs:"Follow security protocol strictly. Do not handle suspicious item. Coordinate security.",rf:"SIA OM Security"},
+{id:"PF11",ph:"preflight",ct:"passenger",sv:"caution",t:"Intoxicated Passenger — Boarding Dispute",d:"Visibly intoxicated passenger becoming loud/aggressive at gate. Has boarded.",pr:"Commander can deny boarding/offload. Assess condition. If disruptive: offload with CIC. Written statements from 2 witnesses. Coordinate police if needed.",m:[],cb:["PDM","LTW","COM","PDI","SAW"],rs:"Firm decision. Proper documentation with witnesses. Professional handling.",rf:"SIA OM Unruly Passengers"},
+{id:"PF12",ph:"preflight",ct:"passenger",sv:"caution",t:"Special Needs Passenger — Missing Oxygen",d:"Wheelchair passenger with oxygen requirement boarded but supplemental oxygen not loaded.",pr:"Verify aircraft medical oxygen sufficiency. If insufficient: urgently load prescribed oxygen. Cannot depart without. If unavailable: offload with care. Verify MEDIF documentation.",m:[],cb:["PDM","COM","LTW","KNO","PDI"],rs:"Patient safety first. All MEDIF requirements verified before departure.",rf:"SIA OM Special Passengers / MEDIF"},
+{id:"PF13",ph:"preflight",ct:"technical",sv:"caution",t:"Dual EFB Failure",d:"Both EFBs showing software errors. No electronic charts or performance data.",pr:"Restart both. If one recovers: dispatch per MEL. If both failed: paper charts required. Performance via alternate means. If no backup: cannot dispatch.",m:[],cb:["KNO","APC","PDM","WLM"],rs:"Systematic troubleshooting. MEL assessment. Alternative information sources confirmed.",rf:"FCTM EFB / SIA OM MEL"},
+{id:"PF14",ph:"preflight",ct:"medical",sv:"warning",t:"Passenger Medical Emergency Before Pushback",d:"CIC reports chest pains in 32A. Pulse rapid, irregular. Doctor paged.",pr:"Gate medical resources superior to inflight. Request airport medical team. Doctor assesses. If advised: offload for hospital. Do NOT depart with active medical emergency.",m:[],cb:["PDM","COM","LTW","SAW","PDI"],rs:"Gate treatment prioritized. Clear decision: treat on ground rather than risk deterioration.",rf:"SIA OM Medical / Commander's Discretion"},
+
+// BEFORE START
+{id:"BS01",ph:"before_start",ct:"operational",sv:"caution",t:"Loadsheet: Weight Exceeds MTOW",d:"Final loadsheet shows 800kg above MTOW.",pr:"Verify accuracy. Options: 1) Offload cargo 2) Reduce fuel to minimum 3) Offload passengers (last resort). Recompute performance.",m:[],cb:["KNO","APC","PDM","COM","WLM"],rs:"Systematic weight reduction. Never exceed structural limits.",rf:"SQNP Before Start / FCOM Performance"},
+{id:"BS02",ph:"before_start",ct:"passenger",sv:"advisory",t:"Passenger Count Mismatch",d:"Cabin crew headcount 2 fewer than manifest. Cannot identify who is missing.",pr:"Recount. Check lavatories. Gate agent verifies boarding records. If unaccounted: offload their checked bags (MANDATORY security). Delay code PQ.",m:[],cb:["SAW","COM","LTW","PDM","PDI"],rs:"Security compliance non-negotiable. Unaccounted passenger bags MUST be offloaded.",rf:"SIA OM Passenger Reconciliation / ICAO Annex 17"},
+{id:"BS03",ph:"before_start",ct:"operational",sv:"caution",t:"ATC Slot Delay — CTOT 45 Minutes",d:"ATC flow control delay. CTOT 45 minutes after scheduled departure.",pr:"Accept CTOT. PA using NITS format. Keep cabin crew informed. SIAOCC via ACARS. Monitor for earlier slot (respond within 10 min).",m:[],cb:["COM","WLM","LTW","PDM"],rs:"Professional delay management. Regular PAs every 15-20 min. Monitor earlier slot.",rf:"SIA OM Flow Control / SQNP ATC Delays"},
+{id:"BS04",ph:"before_start",ct:"passenger",sv:"advisory",t:"Passenger Refuses to Stow Oversized Bag",d:"Passenger insists oversized carry-on stays with them. Bin won't close.",pr:"CIC handles first. If refuses: Commander informed. Commander's word final per ANO. Two options: gate-check or deplane.",m:[],cb:["LTW","COM","PDM","PDI"],rs:"Calm, firm safety regulations. Options offered. Offload if non-compliant.",rf:"SIA OM Commander's Authority"},
+
+// ENGINE START
+{id:"ES01",ph:"engine_start",ct:"technical",sv:"warning",t:"Engine Hot Start — EGT Exceeding",d:"Engine 2 auto-start EGT rising rapidly toward limit.",pr:"MASTER LEVER → OFF immediately. Wait for cooling per FCOM. Max re-attempts per limits. If second attempt abnormal: return to gate.",m:["MASTER LEVER → OFF if EGT exceeding"],cb:["KNO","APC","SAW","PDM"],rs:"Prompt recognition and abort. Patient cooling. Conservative re-attempt limit.",rf:"FCOM Engine Start / FCTM"},
+{id:"ES02",ph:"engine_start",ct:"technical",sv:"emergency",t:"Engine Fire During Start",d:"ECAM ENG 1 FIRE during start sequence.",pr:"ENG 1 MASTER → OFF. FIRE pb → PUSH. If persists 30s: AGENT 1 DISCH. If still: AGENT 2. Park brake ON. Notify ATC. Alert cabin. Consider evacuation.",m:["ENG MASTER → OFF","FIRE pb → PUSH","AGENT 1 after 30s","AGENT 2 if persists"],cb:["APC","PDM","COM","LTW","WLM","PDI"],rs:"Immediate memory items. Calm communication. Evacuation if uncontrollable.",rf:"ECAM ENG FIRE / FCTM Fire"},
+{id:"ES03",ph:"engine_start",ct:"operational",sv:"caution",t:"Ground Crew Disconnect Failure",d:"After start, ground interphone still connected. Ground crew not responding.",pr:"Do not taxi with equipment attached. Attempt interphone. If no response: parking brake, inform ATC. Request investigation. Never drag equipment.",m:[],cb:["SAW","COM","PDM","PDI"],rs:"Patient handling. Safety over schedule. Positive ground-clear confirmation.",rf:"SQNP Engine Start"},
+
+// AFTER START
+{id:"AS01",ph:"after_start",ct:"technical",sv:"caution",t:"Flight Control Check — Restricted Travel",d:"Restricted elevator travel on right side during full check.",pr:"DO NOT TAXI. Report maintenance. Return to gate. Never depart with flight control restriction.",m:[],cb:["KNO","APC","PDM","SAW","PDI"],rs:"Zero tolerance for flight control anomalies. Immediate return.",rf:"FCTM Flight Controls Check"},
+{id:"AS02",ph:"after_start",ct:"cabin",sv:"advisory",t:"Slide Arming Discrepancy",d:"DOOR SD shows one slide not armed. CIC says all armed.",pr:"Cross-check DOOR SD vs cabin confirmation. If discrepancy: investigate. Cannot depart with exit unserviceable unless MEL allows with pax reduction.",m:[],cb:["SAW","APC","COM","PDM"],rs:"Resolve before taxi. Every emergency exit verified functional.",rf:"SQNP Door Verification / FCOM"},
+
+// TAXI OUT
+{id:"TX01",ph:"taxi_out",ct:"technical",sv:"warning",t:"Brake Check Failure — Asymmetric",d:"Left side significantly weaker than right. Aircraft pulls right under braking.",pr:"STOP. Parking brake. Check ECAM WHEEL page. If degraded: return to gate. DO NOT takeoff with asymmetric braking.",m:[],cb:["APC","SAW","PDM","FPM","PDI"],rs:"Immediate stop. Conservative return. Maintenance investigation mandatory.",rf:"FCTM Taxi / SQNP Brake Check"},
+{id:"TX02",ph:"taxi_out",ct:"security",sv:"emergency",t:"Runway Incursion — Vehicle on Runway",d:"Vehicle crossing active runway while you hold short. ATC hasn't called traffic.",pr:"DO NOT enter runway. Alert ATC: 'HOLDING SHORT, VEHICLE ON RUNWAY'. Verify position. Don't accept takeoff clearance until confirmed clear.",m:[],cb:["SAW","COM","PDM","PDI"],rs:"See-and-avoid. Proactive ATC alert. Verify visually.",rf:"SIA OM Runway Safety / FCTM Taxi"},
+{id:"TX03",ph:"taxi_out",ct:"medical",sv:"caution",t:"Passenger Seizure During Taxi",d:"CIC: passenger 15C having seizure. Doctor assisting. Asking if return to gate.",pr:"Assess medical situation. Doctor's recommendation is key input. If stable and doctor advises continue: proceed with monitoring. If hospital needed: return to gate. Declare PAN PAN if returning.",m:[],cb:["PDM","COM","LTW","SAW","WLM"],rs:"Doctor's advice as key input. Commander's final decision. Gate resources superior if in doubt.",rf:"SIA OM Medical / Commander's Discretion"},
+{id:"TX04",ph:"taxi_out",ct:"passenger",sv:"advisory",t:"Passenger Demands to Deplane During Taxi",d:"Passenger 8A extremely anxious, claiming must get off. Doors closed, taxiing.",pr:"Cannot open doors during taxi. CIC calms and assesses. If genuine medical emergency: stop, return to gate. If anxiety: CIC provides support. If attempting to open door: security issue.",m:[],cb:["PDM","COM","LTW","SAW","PDI"],rs:"Patient assessment. Distinguish medical from anxiety. Safety of all considered.",rf:"SIA OM Passenger Management"},
+{id:"TX05",ph:"taxi_out",ct:"atc",sv:"advisory",t:"Amended Clearance — Different SID During Taxi",d:"ATC issues new SID requiring FMS reprogramming while taxiing.",pr:"Read back. PM reprograms while PF taxis. Verify new SID. Brief differences. If insufficient time: request hold position.",m:[],cb:["APC","COM","SAW","WLM","KNO"],rs:"Accurate readback. Efficient FMS update with verification. Request time if needed.",rf:"SQNP Taxi / FCTM Departure"},
+{id:"TX06",ph:"taxi_out",ct:"technical",sv:"warning",t:"CONFIG Warning During Taxi",d:"ECAM CONFIG warning — possible flap/trim misconfiguration.",pr:"Slow/stop taxi. Verify config: flaps per loadsheet, trim set, spoilers armed RTO. Cross-check ECAM memo. Correct before runway.",m:[],cb:["SAW","APC","KNO","PDM"],rs:"Never ignore CONFIG warnings. Resolve before runway.",rf:"SQNP Pre-Takeoff / FCOM CONFIG"},
+{id:"TX07",ph:"taxi_out",ct:"cabin",sv:"advisory",t:"Cabin Not Ready — Approaching Runway",d:"Approaching runway, no CABIN READY signal. CIC: galley equipment still unsecured.",pr:"Do NOT enter runway without CABIN READY. Hold short. Inform ATC: 'Need 2 minutes.' Wait for confirmation.",m:[],cb:["APC","COM","SAW","LTW","PDI"],rs:"Never take off without cabin ready. Short hold acceptable.",rf:"SQNP Taxi / SIA OM Cabin Ready"},
+{id:"TX08",ph:"taxi_out",ct:"passenger",sv:"caution",t:"Unruly Passenger Becomes Aggressive",d:"Passenger 22D verbally abusing cabin crew after seatbelt request. Escalating.",pr:"CIC de-escalation. If physically threatening: Commander decides return to gate. Restrain with witness documentation. Alert police via ATC.",m:[],cb:["LTW","PDM","COM","PDI","SAW"],rs:"De-escalation first. Firm boundary if safety threatened. Return with police. Documentation.",rf:"SIA OM Unruly Passengers"},
+
+// TAKEOFF
+{id:"TO01",ph:"takeoff",ct:"technical",sv:"emergency",t:"RTO — Engine Failure Below V1",d:"At 135kt, ECAM ENG 2 FAIL. Below V1.",pr:"'STOP'. THRUST IDLE. REVERSE MAX. PM: 'REVERSERS','DECELERATION', AUTOBRAKE, ATC. If insufficient: FULL PEDAL. PARK BRAKE when stopped. Alert cabin. ECAM.",m:["'STOP'","THRUST → IDLE","REVERSE → MAX","PARK BRAKE ON"],cb:["APC","PDM","FPM","COM","LTW","SAW","WLM","PDI"],rs:"Timely reject. Correct braking. Calm coordination.",rf:"FCTM RTO / SQNP Callouts"},
+{id:"TO02",ph:"takeoff",ct:"technical",sv:"emergency",t:"Engine Failure After V1",d:"Engine 1 fails past V1. Yaw, ECAM warnings.",pr:"CONTINUE. Stabilize pitch/speed. Rudder to center blue beta target. Trim to relieve. Follow SRS. At EO accel alt: ALT pb. ECAM when safe.",m:["Continue","Rudder → center beta","Trim","ECAM when safe"],cb:["FPM","APC","SAW","PDM","COM","WLM","PDI"],rs:"Fly first. Correct asymmetric handling. Patient ECAM.",rf:"FCTM Engine Failure After V1"},
+{id:"TO03",ph:"takeoff",ct:"weather",sv:"emergency",t:"Windshear on Takeoff",d:"'GO AROUND WINDSHEAR AHEAD' during rotation.",pr:"'WINDSHEAR TOGA'. TOGA. No config change. Full backstick if needed for SRS. Fly out completely.",m:["'WINDSHEAR TOGA'","TOGA","No config change","Full backstick"],cb:["FPM","APC","SAW","PDM","COM","PDI"],rs:"Immediate correct response. No premature reconfiguration.",rf:"FCTM Windshear"},
+{id:"TO04",ph:"takeoff",ct:"technical",sv:"warning",t:"Tire Failure During Takeoff Roll",d:"Loud bang, vibration at 100kt. Possible tire failure.",pr:"Below V1: assess directional control. Above V1: CONTINUE. After airborne: DO NOT retract gear. ECAM. Compute degraded landing performance.",m:[],cb:["PDM","FPM","SAW","APC","COM","WLM"],rs:"Correct speed-based decision. Conservative gear decision. Performance recomputation.",rf:"FCTM Wheel Tire Damage"},
+{id:"TO05",ph:"takeoff",ct:"technical",sv:"emergency",t:"Stall Warning at Liftoff",d:"Stick shaker during rotation. AOA high.",pr:"'STALL, TOGA 12.5°'. TOGA. Pitch 12.5°. Don't over-rotate. Verify config.",m:["'STALL, TOGA 12.5°'","TOGA","Pitch 12.5°"],cb:["FPM","APC","SAW","PDM","PDI"],rs:"Immediate stall recovery. Correct thrust/pitch. Configuration check.",rf:"SQNP Stall / FCTM Stall Recovery"},
+{id:"TO06",ph:"takeoff",ct:"atc",sv:"warning",t:"TCAS RA During Initial Climb-out",d:"Immediately after gear up, TCAS RA CLIMB. Conflict traffic.",pr:"ABSOLUTE PRIORITY. 'TCAS BLUE'/'TCAS, I HAVE CONTROL'. Follow RA immediately. Do NOT follow contrary ATC. Inform ATC.",m:["Follow RA IMMEDIATELY","Absolute priority"],cb:["FPM","APC","SAW","COM","PDM","PDI"],rs:"Instant compliance. Override contrary ATC. Report.",rf:"FCTM TCAS RA / SQSP"},
+{id:"TO07",ph:"takeoff",ct:"technical",sv:"warning",t:"Bird Strike at V1/Rotation",d:"Multiple impacts at rotation. Thuds. Engine parameters initially normal.",pr:"Continue (past V1). Monitor engines closely. If abnormal: engine failure procedures. If windshield cracked: pressurization implications. Report to ATC.",m:[],cb:["SAW","PDM","FPM","COM","APC"],rs:"Continue safely. Thorough monitoring. Early report.",rf:"FCTM Bird Strike"},
+{id:"TO08",ph:"takeoff",ct:"technical",sv:"emergency",t:"Dual Engine Failure — All Engines",d:"Both engines lose thrust during climb (bird flock / contamination).",pr:"Windmill relight attempt. If altitude insufficient: forced landing. MAYDAY. Best available area. APU for backup.",m:["Windmill relight","MAYDAY","Best landing area","APU"],cb:["FPM","PDM","SAW","COM","APC","LTW","WLM","PDI"],rs:"Immediate relight. Best energy management. MAYDAY. Crew coordination.",rf:"FCTM All Engines Failure"},
+
+// INITIAL CLIMB
+{id:"IC01",ph:"initial_climb",ct:"technical",sv:"emergency",t:"Engine Fire in Climb",d:"ECAM ENG 2 FIRE at 1500ft AGL. Master warning, fire bell.",pr:"ECAM: ENG 2 MASTER → OFF, FIRE pb → PUSH, AGENT 1 after 30s. If not extinguished: AGENT 2. Continue climb. Declare PAN/MAYDAY. Return.",m:["ENG MASTER → OFF","FIRE pb → PUSH","AGENT 1 → 30s","AGENT 2"],cb:["APC","PDM","FPM","COM","SAW","WLM","LTW"],rs:"Immediate ECAM. Single engine climb management. Return planning.",rf:"ECAM ENG FIRE / FCTM Fire"},
+{id:"IC02",ph:"initial_climb",ct:"technical",sv:"warning",t:"ECAM Warning Below 400ft — Delay Actions",d:"Multiple ECAM cautions at 300ft AGL. HYD + ELEC.",pr:"SAFE FLIGHT PATH FIRST. Delay READ & DO until ≥400ft AGL. PF flies. PM monitors and notes. Actions only when safe.",m:["Safe flight path FIRST","Delay until ≥400ft AGL"],cb:["APC","SAW","WLM","PDM","FPA","FPM"],rs:"Absolute discipline: Fly, Navigate, Communicate. ECAM waits.",rf:"FCTM ECAM Philosophy / 400ft Rule"},
+{id:"IC03",ph:"initial_climb",ct:"medical",sv:"caution",t:"Passenger Collapse After Takeoff",d:"Passenger 41K collapsed. Cabin crew first aid. Doctor paged.",pr:"CONTINUE CLIMB — cannot return at low altitude. CIC manages with medical resources. Page doctor. At safe altitude: assess return vs continue.",m:[],cb:["PDM","COM","LTW","SAW","WLM"],rs:"Continue to safe altitude. Medical assessment. Rational return decision.",rf:"SIA OM Medical / Return Decision"},
+{id:"IC04",ph:"initial_climb",ct:"cabin",sv:"warning",t:"Lavatory Smoke Detection",d:"ECAM SMOKE LAVATORY at 2000ft during climb.",pr:"CIC investigates with PBE and extinguisher. If source found: extinguish/isolate. If not: full FIRE SMOKE FUMES procedure. Consider return.",m:[],cb:["APC","SAW","PDM","COM","LTW","WLM"],rs:"Rapid investigation. Clear identification or escalation.",rf:"FCTM Lavatory Smoke / ECAM"},
+{id:"IC05",ph:"initial_climb",ct:"technical",sv:"emergency",t:"Unreliable Airspeed During Climb",d:"Captain/FO airspeeds diverging. ECAM ADR DISAGREE.",pr:"'UNRELIABLE SPEED'. Safe flight path FIRST. Memory items: pitch/thrust for climb. IMMEDIATELY to QRH NAV UNRELIABLE. Don't stay on memory values long.",m:["'UNRELIABLE SPEED'","Pitch/thrust memory values","QRH immediately"],cb:["SAW","APC","FPM","PDM","KNO","COM"],rs:"Recognition, stabilization, rapid transition to troubleshooting.",rf:"FCTM Unreliable Airspeed / QRH"},
+
+// CLIMB
+{id:"CL01",ph:"climb",ct:"technical",sv:"emergency",t:"Cabin Pressurization Failure — Emergency Descent",d:"CAB PRESS EXCESS CAB ALT. Cabin altitude climbing through 10,000ft.",pr:"'EMERGENCY DESCENT'. Memory: CREW OXY → USE, SIGNS → ON, EMER DESC → INITIATE, SPD BRK → FULL, THR → IDLE. ATC, squawk 7700. PA to cabin.",m:["CREW OXY → USE","SIGNS → ON","EMER DESC → INITIATE","SPD BRK → FULL","THR → IDLE"],cb:["APC","PDM","FPA","COM","SAW","WLM","LTW","PDI"],rs:"Immediate memory items. Terrain awareness. ATC coordination.",rf:"FCTM Emergency Descent"},
+{id:"CL02",ph:"climb",ct:"technical",sv:"emergency",t:"Smoke / Fumes in Cockpit",d:"Acrid electrical smell. Thin haze visible in cockpit.",pr:"Crew oxygen/PBE. Identify source if possible. If not: FIRE SMOKE FUMES — electrical isolation. Plan IMMEDIATE diversion. LAND ASAP if uncontrollable.",m:["Oxygen/PBE ON","Identify or isolate source","LAND ASAP if uncontrolled"],cb:["APC","PDM","COM","SAW","WLM","LTW","PDI"],rs:"Don protective equipment. Systematic identification. Early diversion decision.",rf:"FCTM FIRE SMOKE FUMES / SQSP"},
+{id:"CL03",ph:"climb",ct:"medical",sv:"warning",t:"Passenger Cardiac Arrest",d:"Doctor reports cardiac arrest. CPR in galley. AED deployed.",pr:"Life-threatening. Assess: destination vs diversion time. Tele-medical via SATCOM. If diversion faster with hospital: DIVERT. PAN PAN MEDICAL PRIORITY.",m:[],cb:["PDM","COM","LTW","SAW","WLM","PDI"],rs:"Time-critical decision. Tele-medical. Fastest hospital access.",rf:"SIA OM Medical / Tele-Medical"},
+{id:"CL04",ph:"climb",ct:"passenger",sv:"caution",t:"Suspected Infectious Disease",d:"CIC: passenger with high fever, cough, vomiting. Recent outbreak area travel.",pr:"ISOLATE immediately. Protective equipment. Tele-medical consultation. Do NOT divert solely for infection unless deteriorating. Notify arrival station. SIAOCC.",m:[],cb:["PDM","COM","LTW","SAW","KNO"],rs:"Isolation first. Medical consultation. Authorities notified. Balanced diversion decision.",rf:"SIA OM Infectious Disease"},
+{id:"CL05",ph:"climb",ct:"technical",sv:"caution",t:"Fuel Quantity Discrepancy",d:"Fuel flow higher than planned. 400kg less than expected.",pr:"Cross-check fuel flow both engines. Verify no leak (ECAM FUEL). Compute sufficiency. If tight: alternate routing, lower altitude, or fuel stop. Update SIAOCC.",m:[],cb:["SAW","KNO","PDM","COM","WLM"],rs:"Early detection. Systematic crosscheck. Proactive management.",rf:"FCTM Fuel / SIA OM Fuel Policy"},
+
+// CRUISE
+{id:"CR01",ph:"cruise",ct:"technical",sv:"warning",t:"Single Engine Shutdown in Cruise",d:"ECAM ENG 1 failure/high vibration requiring shutdown.",pr:"Follow ECAM. Drift-down. Recompute fuel/diversion. ETOPS/EROPS assessment. ATC. Coordinate dispatch.",m:[],cb:["APC","PDM","SAW","KNO","COM","WLM","FPA"],rs:"Orderly ECAM. Drift-down. Informed diversion decision.",rf:"FCTM Engine Failure Cruise"},
+{id:"CR02",ph:"cruise",ct:"weather",sv:"warning",t:"Severe Turbulence — Cabin Injuries",d:"Unexpected severe turbulence. Multiple cabin injuries. Galley scattered.",pr:"MISC SEVERE TURBULENCE. Speed: Green Dot to 300kt/M.85. AP ON. Recycle SEATBELT rapidly. PA: 'BE SEATED IMMEDIATELY'. Assess injuries. Consider diversion.",m:["Recycle SEATBELT urgently","Speed: GD to 300/M.85","AP ON"],cb:["FPA","SAW","PDM","COM","APC","WLM","LTW"],rs:"Aircraft control. Cabin protection. Injury assessment. Diversion if serious.",rf:"FCTM Severe Turbulence / SQSP"},
+{id:"CR03",ph:"cruise",ct:"medical",sv:"warning",t:"Passenger Death Suspected",d:"Doctor pronounces passenger dead. CIC requesting guidance.",pr:"Leave body in place. Type 2 body bag if available. Notify SIAOCC → Airport Police/Health Office. Commander: General Declaration entry. Continue to destination.",m:[],cb:["PDM","COM","LTW","PDI","WLM"],rs:"Dignified handling. Documentation. Notification chain. Flight continues.",rf:"SIA OM Death on Board"},
+{id:"CR04",ph:"cruise",ct:"security",sv:"emergency",t:"Bomb Threat via ACARS",d:"SIAOCC relays bomb threat. No specific location.",pr:"SIA security procedures. Assess credibility with SIAOCC. If credible: divert to nearest with EOD. Do NOT shut down engines until directed. Isolation parking. Cabin search if directed.",m:[],cb:["PDM","COM","LTW","SAW","PDI","WLM"],rs:"Calm threat assessment. Coordinated response. No panic.",rf:"SIA OM Security / SQI Announcements"},
+{id:"CR05",ph:"cruise",ct:"technical",sv:"emergency",t:"TCAS RA — Descend Now",d:"TCAS RA 'DESCEND DESCEND'. Opposite direction traffic.",pr:"ABSOLUTE PRIORITY. Follow vertical guidance. Do NOT obey contrary ATC. Inform ATC. Return to cleared altitude at 'CLEAR OF CONFLICT'.",m:["Follow RA IMMEDIATELY","No contrary ATC"],cb:["FPM","APC","SAW","COM","PDM","PDI"],rs:"Instant compliance. ATC overridden if necessary.",rf:"FCTM TCAS RA"},
+{id:"CR06",ph:"cruise",ct:"technical",sv:"emergency",t:"Captain Incapacitation",d:"Captain slumps in seat, unresponsive.",pr:"'I have control'. Engage AP. If interference: sidestick pb 40s. Inform ATC. CIC to assist securing. Early approach prep. Request vectors. Consider auto landing.",m:["'I have control'","AP engaged","Sidestick pb 40s","Vectors/auto land"],cb:["LTW","PDM","COM","SAW","WLM","FPA","PDI"],rs:"Immediate control. Secure pilot. Workload reduction. Safe landing.",rf:"FCTM Crew Incapacitation"},
+{id:"CR07",ph:"cruise",ct:"passenger",sv:"caution",t:"Passenger Physical Fight",d:"Two passengers in physical altercation. Other passengers distressed.",pr:"CIC separates. Restrain if needed per SIA procedures. Witness statements. Continue or divert based on ongoing threat. SIAOCC.",m:[],cb:["LTW","PDM","COM","PDI","SAW"],rs:"De-escalation. Restraint if needed. Balanced diversion assessment.",rf:"SIA OM Unruly Passengers"},
+{id:"CR08",ph:"cruise",ct:"cabin",sv:"emergency",t:"Lithium Battery Fire in Cabin",d:"Passenger laptop smoking/flaming in seat pocket.",pr:"CIC: PBE + extinguisher. Pour water/liquid on device. Immerse in container. Monitor continuously. If spreading: FIRE SMOKE FUMES. Consider diversion.",m:["Extinguish","Immerse in liquid","Monitor"],cb:["APC","PDM","COM","SAW","LTW","WLM"],rs:"Rapid response. Correct immersion. Continuous monitoring.",rf:"FCTM Lithium Battery / QRH"},
+{id:"CR09",ph:"cruise",ct:"weather",sv:"emergency",t:"Volcanic Ash Encounter",d:"Acrid smell, haze, St. Elmo's fire. Engine parameters changing.",pr:"180° descending turn EXIT. A/THR OFF, thrust IDLE. Anti-ice ON. All packs ON. APU start. Oxygen 100%. Monitor airspeed/EGT.",m:["180° turn exit","A/THR OFF, IDLE","Anti-ice/packs ON","APU","Oxygen 100%"],cb:["SAW","APC","PDM","FPM","KNO","COM"],rs:"Immediate exit. Engine protection. System monitoring.",rf:"FCTM Volcanic Ash / SIA OM"},
+{id:"CR10",ph:"cruise",ct:"cabin",sv:"caution",t:"Two Cabin Crew Incapacitated — Food Poisoning",d:"Two crew members severe gastro. Minimum crew at risk.",pr:"Assess remaining complement vs minimum. If below: must land nearest suitable. Tele-medical for affected crew. SIAOCC for replacement at diversion.",m:[],cb:["PDM","LTW","COM","SAW","WLM","KNO"],rs:"Regulatory compliance. Diversion if below minimum crew.",rf:"SIA OM Minimum Cabin Crew"},
+
+// DESCENT
+{id:"DS01",ph:"descent",ct:"technical",sv:"emergency",t:"Emergency Descent Required",d:"Structural/pressurization loss requiring rapid descent.",pr:"'EMERGENCY DESCENT'. Memory items. Terrain awareness. TCAS priority even during descent. 10,000ft or MEA. High terrain: SQSP escape manoeuvre.",m:["CREW OXY → USE","SIGNS → ON","EMER DESC → INITIATE","SPD BRK → FULL"],cb:["APC","PDM","SAW","FPA","COM","WLM","LTW","PDI"],rs:"Immediate execution. Terrain awareness. TCAS compliance.",rf:"FCTM Emergency Descent / SQSP"},
+{id:"DS02",ph:"descent",ct:"operational",sv:"caution",t:"Destination Below Minima — Divert?",d:"ATIS: destination below Cat I. Fuel for one approach + diversion.",pr:"Can weather improve? Fuel for holding? Alternate acceptable? Decision: attempt one approach with diversion fuel, or divert now.",m:[],cb:["KNO","PDM","SAW","COM","WLM"],rs:"Data-driven decision. Clear decision gates briefed.",rf:"SIA OM Weather / Fuel Policy"},
+{id:"DS03",ph:"descent",ct:"medical",sv:"warning",t:"Medical Emergency — Diversion Assessment",d:"Doctor requests immediate landing for suspected stroke. 40min to dest, 25min to diversion.",pr:"PAN PAN MEDICAL PRIORITY. Tele-medical. Compute fuel/performance at diversion. If faster with hospital: DIVERT. SIAOCC for ground medical.",m:[],cb:["PDM","COM","LTW","SAW","WLM","KNO"],rs:"Time-critical decision. Fastest hospital access.",rf:"SIA OM Medical Diversion"},
+{id:"DS04",ph:"descent",ct:"operational",sv:"caution",t:"Fuel Jettison Required",d:"Returning emergency but above MLW. Jettison needed.",pr:"No speed/config restrictions. ATC for height (6,000ft ICAO min). Not near thunderstorms. Avoid jettisoned flow (~500ft/min descent). Recompute landing performance.",m:[],cb:["APC","KNO","COM","SAW","WLM"],rs:"Correct technique. ATC coordination. Weight verified.",rf:"SQNP Fuel Jettison / FCTM"},
+{id:"DS05",ph:"descent",ct:"passenger",sv:"advisory",t:"Passenger Anxiety Attack Before Landing",d:"Passenger hyperventilating, extreme anxiety. Doctor assisting, no medical emergency.",pr:"CIC manages. Doctor supporting. No operational impact. Commander may make reassuring PA. No diversion required.",m:[],cb:["COM","LTW","WLM"],rs:"Empathetic. Cabin crew supported. No disruption.",rf:"SIA OM Passenger Care"},
+
+// APPROACH
+{id:"AP01",ph:"approach",ct:"technical",sv:"warning",t:"Unstabilized — Go-Around",d:"800ft: speed V+15, sink 1200fpm, below glideslope.",pr:"GO-AROUND. TOGA → FLX/MCT. ROTATE. 'GO-AROUND'. PM: flaps retract 1, FMA, 'POSITIVE CLIMB' → Gear UP.",m:["'GO-AROUND'","TOGA → FLX/MCT","ROTATE","Gear UP on positive climb"],cb:["FPM","APC","PDM","COM","SAW","LTW","PDI"],rs:"Immediate go-around. No salvage attempt.",rf:"FCTM Go-Around / Stabilized Criteria"},
+{id:"AP02",ph:"approach",ct:"weather",sv:"emergency",t:"Windshear on Final",d:"Reactive windshear at 400ft. Energy dropping.",pr:"'WINDSHEAR TOGA'. TOGA. No config change. Full backstick. Go-around automatic.",m:["'WINDSHEAR TOGA'","TOGA","No config change"],cb:["FPM","APC","SAW","PDM","COM","PDI"],rs:"Immediate escape. Full performance climb.",rf:"FCTM Windshear"},
+{id:"AP03",ph:"approach",ct:"technical",sv:"warning",t:"ILS False Glideslope Capture",d:"GS captured but altitude 500ft high at expected distance.",pr:"Cross-check alt vs distance. If mismatch: on false GS. GO-AROUND. Re-establish from below.",m:[],cb:["SAW","FPA","PDM","KNO","APC","COM"],rs:"Cross-checking detects anomaly. Go-around. Correct technique.",rf:"FCTM Approach / ILS"},
+{id:"AP04",ph:"approach",ct:"technical",sv:"warning",t:"Single Engine Approach",d:"Approaching with Eng 2 shutdown. OEI considerations.",pr:"Commander PF. CONF FULL. Higher VAPP. Brief OEI go-around meticulously — highest workload. Reduced crosswind limits. BTV if available.",m:[],cb:["FPM","APC","PDM","KNO","SAW","COM","LTW","WLM"],rs:"Thorough OEI briefing. Conservative approach. GA briefed meticulously.",rf:"FCTM OEI Approach"},
+{id:"AP05",ph:"approach",ct:"cabin",sv:"caution",t:"Cabin Crew Injury — Cabin Not Ready",d:"Turbulence during descent injures cabin crew. Preparation incomplete.",pr:"If crew can complete: continue. If cabin ready cannot be achieved: go-around until secure. Never land without cabin ready.",m:[],cb:["LTW","PDM","COM","SAW","WLM"],rs:"Cabin ready non-negotiable. Go-around if necessary.",rf:"SIA OM Cabin Ready / SQNP"},
+{id:"AP06",ph:"approach",ct:"atc",sv:"caution",t:"ATC Speed Reduction — Unstable Risk",d:"At 6DME, ATC requests 160kt. Still Flap 1, need to configure.",pr:"Accept only if configurable. If unstable risk: negotiate 'Unable 160, request 180 minimum.' If unstable: GO-AROUND.",m:[],cb:["COM","APC","PDM","SAW","FPA"],rs:"Professional ATC negotiation. Go-around if unstable.",rf:"FCTM Approach / ATC"},
+{id:"AP07",ph:"approach",ct:"operational",sv:"warning",t:"Go-Around with Low Fuel",d:"Executing go-around, fuel at minimum. One more approach or diversion.",pr:"Assess fuel. MINIMUM FUEL declaration if < planned reserve. MAYDAY FUEL if below final reserve. Priority vectors. If weather preventing: divert immediately.",m:[],cb:["PDM","COM","SAW","KNO","WLM"],rs:"Immediate fuel assessment. Correct declaration. Priority or diversion.",rf:"SIA OM Fuel Policy"},
+{id:"AP08",ph:"approach",ct:"passenger",sv:"advisory",t:"Passenger Refuses Seat Upright",d:"Passenger 34C won't return seat upright. Cabin ready delayed.",pr:"CIC escalates. Commander PA reinforcing requirement. If continued: cabin crew documents. Don't delay approach for one seat. Post-flight report.",m:[],cb:["LTW","COM","PDI","WLM"],rs:"Escalation followed. Don't delay flight for minor non-compliance.",rf:"SIA OM Passenger Management"},
+
+// LANDING
+{id:"LD01",ph:"landing",ct:"technical",sv:"emergency",t:"Loss of Braking After Touchdown",d:"No deceleration. Autobrake not engaging. Manual ineffective.",pr:"'LOSS OF BRAKING'. PARK BRK ON. A/SKID OFF. MAX pedal. MAX reverse. CAUTION: Wet runway anti-skid cycling ≠ loss of braking.",m:["'LOSS OF BRAKING'","PARK BRK ON","A/SKID OFF","MAX braking","CAUTION wet runway"],cb:["APC","FPM","PDM","SAW","COM","PDI"],rs:"Correct diagnosis. Appropriate memory items. Maximum reverse.",rf:"FCTM Loss of Braking"},
+{id:"LD02",ph:"landing",ct:"technical",sv:"emergency",t:"Landing with Abnormal Nose Gear",d:"Nose gear unsafe. Main gear down and locked. Gravity extension done.",pr:"CONF FULL. No ground spoilers. No autobrake. Max 1000 PSI braking. Shut engines before nose impact. No reversers. FIRE pbs when stopped. Cabin prepared.",m:["No spoilers","No autobrake","1000 PSI max","Engines off before impact","FIRE pbs when stopped"],cb:["APC","PDM","FPM","COM","LTW","SAW","WLM","PDI"],rs:"Correct abnormal technique. Cabin prepared. Post-landing fire protection.",rf:"FCTM Abnormal Landing Gear"},
+{id:"LD03",ph:"landing",ct:"technical",sv:"warning",t:"Overweight Landing",d:"Emergency return above MLW. Jettison incomplete.",pr:"Commander PF. OVERWEIGHT LANDING ECAM via ABN PROC. CONF FULL. BTV with runway end. Not on contaminated. Higher energy expected.",m:[],cb:["KNO","APC","PDM","FPM","SAW","COM"],rs:"Correct procedure. CONF FULL. Performance verified.",rf:"FCTM Overweight Landing"},
+{id:"LD04",ph:"landing",ct:"technical",sv:"warning",t:"Tailstrike During Flare",d:"Excessive pitch in flare. Tail contacts runway.",pr:"Complete landing roll. Do NOT go-around after tailstrike unless certain. Park brake. Assess damage. Report ATC/maintenance. Aircraft likely AOG.",m:[],cb:["FPM","APC","SAW","COM","PDI"],rs:"Complete landing safely. Post-event reporting. No panic go-around.",rf:"FCTM Landing / SQI Hard Landing"},
+{id:"LD05",ph:"landing",ct:"weather",sv:"warning",t:"Late Crosswind Gust in Flare",d:"Strong gust at 20ft. Wing drops. Drift developing.",pr:"Into-wind aileron + opposite rudder. If controllable: complete landing. If excessive: GO-AROUND TOGA.",m:[],cb:["FPM","PDM","SAW","APC"],rs:"Correct technique or timely go-around. No forced landing.",rf:"FCTM Crosswind Landing"},
+{id:"LD06",ph:"landing",ct:"technical",sv:"emergency",t:"Dual Hydraulic Failure G+Y Landing",d:"Both Green and Yellow failed. Alternate Law. Gravity gear extension.",pr:"Gravity gear — mechanically locked, doors open. Early stabilized approach at FAF. AP/FD/A/THR available. No NWS — differential braking. Cat I min. Reduced crosswind.",m:[],cb:["KNO","APC","PDM","FPM","SAW","COM","WLM"],rs:"Complete briefing. Conservative approach. Differential braking.",rf:"FCTM G+Y Hydraulic Failure"},
+
+// AFTER LANDING
+{id:"AL01",ph:"after_landing",ct:"technical",sv:"emergency",t:"Emergency Evacuation — Fire After Landing",d:"Fire warning after touchdown. Smoke visible.",pr:"PARK BRK. ENG MASTERS OFF. FIRE pbs PUSH. EVACUATE. Megaphone if interphone fails. Verify doors safe. Coordinate emergency services. Account all passengers.",m:["PARK BRK","MASTERS OFF","FIRE pbs","EVACUATE"],cb:["LTW","COM","PDM","APC","WLM","PDI","SAW"],rs:"Decisive evacuation. Engines secured. All accounted for.",rf:"FCTM EMER EVAC"},
+{id:"AL02",ph:"after_landing",ct:"technical",sv:"caution",t:"Hot Brakes After Landing",d:"Brake temps exceeding limits after high-energy landing.",pr:"Fans ON. Do NOT set parking brake on hot brakes. Chocks. Clear area. If fire: fire procedures. Wait for cooling.",m:[],cb:["SAW","APC","KNO","COM"],rs:"Correct management. No parking brake. Area cleared.",rf:"FCTM After Landing"},
+{id:"AL03",ph:"after_landing",ct:"security",sv:"emergency",t:"Bomb Threat After Landing",d:"Security advises bomb threat. Aircraft on taxiway.",pr:"Park in isolation if directed. Do NOT shut down until directed. Do NOT evacuate unless danger. Coordinate via ATC.",m:[],cb:["PDM","COM","LTW","SAW","PDI","WLM"],rs:"Protocol followed. Calm management.",rf:"SIA OM Security"},
+{id:"AL04",ph:"after_landing",ct:"cabin",sv:"warning",t:"Inadvertent Slide Deployment at Gate",d:"Cabin crew accidentally deploys evacuation slide on jetbridge.",pr:"Ensure no injuries. Aircraft AOG until replacement. Deplane via other doors. Incident report required.",m:[],cb:["SAW","COM","LTW","PDM","PDI"],rs:"Safety check. Report. Alternative deplaning managed.",rf:"SIA OM Incident Reporting"},
+{id:"AL05",ph:"after_landing",ct:"cabin",sv:"caution",t:"Slide Arming Discrepancy at Gate",d:"DOOR SD shows one slide still armed after disarm call.",pr:"DO NOT open that door. Warn cabin crew. Physical verification. If actually armed: disarm. Opening armed door = slide deployment = injury risk.",m:[],cb:["SAW","APC","COM","PDM","PDI"],rs:"Never open with uncertainty. Physical verification.",rf:"SQNP Door Disarming / FCOM"},
+{id:"AL06",ph:"after_landing",ct:"operational",sv:"advisory",t:"Post-Event PA — Traumatic Incident Recovery",d:"After emergency event, passengers distressed.",pr:"Commander PA: NITS format. SIAOCC activates ground support. Cabin crew reassures. Post-event: trauma support team.",m:[],cb:["COM","LTW","PDI","WLM"],rs:"Calm, honest PA. Ground support activated.",rf:"SIA OM Traumatic Incidents"},
+{id:"AL07",ph:"after_landing",ct:"passenger",sv:"advisory",t:"Tight Connection Passengers Agitated",d:"Multiple passengers demanding to deplane first for tight connections.",pr:"CIC PA about connections. Gate agent for info. Cannot reorganize deplaning. Calm communication.",m:[],cb:["COM","LTW","WLM"],rs:"Professional communication. Expectations set.",rf:"SIA OM Passenger Management"},
+{id:"AL08",ph:"after_landing",ct:"medical",sv:"caution",t:"Passenger Collapse After Landing",d:"During taxi to gate, passenger collapses. Doctor assisting.",pr:"Continue to gate where medical team can meet. Request medical at gate via ATC. If critical and far: stop, request ambulance to taxiway.",m:[],cb:["PDM","COM","LTW","WLM"],rs:"Fastest medical access — usually gate. Ambulance if far.",rf:"SIA OM Medical"},
+];
+
+// ─── ROUTES ───────────────────────────────────────────────────────
+const RT=[{f:"SIN",t:"KUL",d:"1h00m",nm:"160nm",fl:"FL350"},{f:"SIN",t:"BKK",d:"2h20m",nm:"790nm",fl:"FL370"},{f:"SIN",t:"HKG",d:"3h40m",nm:"1590nm",fl:"FL390"},{f:"SIN",t:"NRT",d:"6h40m",nm:"2900nm",fl:"FL410"},{f:"SIN",t:"SYD",d:"7h50m",nm:"3400nm",fl:"FL390"},{f:"SIN",t:"LHR",d:"13h00m",nm:"5965nm",fl:"FL410"}];
+const genRoute=()=>RT[Math.floor(Math.random()*RT.length)];
+
+const genFlight=(diff)=>{
+  const mx=diff==="extreme"?12:diff==="hard"?8:5;
+  const pool=[...B].sort(()=>Math.random()-.5);const sel=[];let hasE=false;
+  for(const s of pool){if(sel.length>=mx)break;if(sel.filter(x=>x.ph===s.ph).length>=2)continue;
+    if(!hasE&&s.sv==="emergency"&&sel.length<mx-1){sel.push(s);hasE=true;continue}
+    if(Math.random()>.4)sel.push(s);}
+  if(!hasE){const e=pool.find(s=>s.sv==="emergency"&&!sel.includes(s));if(e){sel.pop();sel.push(e);}}
+  const po=P.map(p=>p.id);sel.sort((a,b)=>po.indexOf(a.ph)-po.indexOf(b.ph));
+  return{scenarios:sel.slice(0,mx),route:genRoute()};
+};
+
+// ─── MAIN APP ─────────────────────────────────────────────────────
+function App(){
+  const[view,setView]=useState("dashboard");
+  const[flight,setFlight]=useState(null);
+  const[fIdx,setFIdx]=useState(0);
+  const[fScore,setFScore]=useState(0);
+  const[fAnswers,setFAnswers]=useState([]);
+  const[selPhase,setSelPhase]=useState(null);
+  const[selScen,setSelScen]=useState(null);
+  const[done,setDone]=useState(()=>LS.get("done",{}));
+  const[grades,setGrades]=useState(()=>LS.get("grades",{}));
+  const[bestScore,setBestScore]=useState(()=>LS.get("best",0));
+  const[search,setSearch]=useState("");
+  const[fCat,setFCat]=useState("all");
+  const[fSev,setFSev]=useState("all");
+  const[diff,setDiff]=useState("hard");
+  const[simPhase,setSimPhase]=useState("decide");
+  const[simChoices,setSimChoices]=useState({});
+  const[simText,setSimText]=useState("");
+
+  useEffect(()=>LS.set("done",done),[done]);
+  useEffect(()=>LS.set("grades",grades),[grades]);
+  useEffect(()=>LS.set("best",bestScore),[bestScore]);
+
+  const filt=useMemo(()=>B.filter(s=>(fCat==="all"||s.ct===fCat)&&(fSev==="all"||s.sv===fSev)&&(!search||s.t.toLowerCase().includes(search.toLowerCase())||s.d.toLowerCase().includes(search.toLowerCase()))),[fCat,fSev,search]);
+  const nav=(v)=>{setView(v);setSelScen(null);setSelPhase(null)};
+  const startFlight=()=>{setFlight(genFlight(diff));setFIdx(0);setFScore(0);setFAnswers([]);setSimPhase("decide");setSimChoices({});setSimText("");setView("sim")};
+
+  const genQ=(s)=>{
+    const qs=[];const hasMem=s.m.length>0;
+    if(s.sv==="emergency"||s.sv==="warning"){
+      const fa=hasMem?s.m[0]:s.pr.split('.')[0];
+      const wr=["Complete all ECAM actions before assessing the situation","Notify SIAOCC and await further instructions","Brief the cabin crew on the full situation before taking action","Continue normal operations and monitor"].sort(()=>Math.random()-.5).slice(0,3);
+      qs.push({q:"As Commander, what is your FIRST priority action?",opts:[{t:fa,sc:3},{t:wr[0],sc:0},{t:wr[1],sc:0},{t:wr[2],sc:0}].sort(()=>Math.random()-.5)});
+    }
+    if(s.ct==="passenger"||s.ct==="medical"){
+      qs.push({q:"What is your command decision?",opts:[{t:s.rs.split('.')[0],sc:3},{t:"Delay and gather more information first",sc:1},{t:"Delegate entirely to cabin crew",sc:0},{t:"Continue without addressing it",sc:0}].sort(()=>Math.random()-.5)});
+    }else if(s.ct==="technical"){
+      const isRet=s.pr.toLowerCase().includes("return")||s.pr.toLowerCase().includes("do not");
+      qs.push({q:"What is the correct operational decision?",opts:[{t:isRet?"Stop/return — do not continue":"Follow ECAM/procedure systematically",sc:3},{t:"Continue and address at destination",sc:0},{t:"Reset system, assume it resolves",sc:0},{t:isRet?"Proceed with increased monitoring":"Declare MAYDAY regardless of severity",sc:1}].sort(()=>Math.random()-.5)});
+    }else if(s.ct==="security"){
+      qs.push({q:"What is your security protocol decision?",opts:[{t:"Follow SIA security procedures, coordinate ATC/security",sc:3},{t:"Handle internally without external agencies",sc:0},{t:"Immediately evacuate all passengers",sc:1},{t:"Ignore — probably false alarm",sc:0}].sort(()=>Math.random()-.5)});
+    }else{
+      qs.push({q:"How do you prioritize this?",opts:[{t:"Safety first, then assess impact systematically",sc:3},{t:"Schedule/OTP takes priority",sc:0},{t:"Delegate everything, focus on flying",sc:1},{t:"Wait to see if it resolves",sc:0}].sort(()=>Math.random()-.5)});
+    }
+    const ct={passenger:"CIC, ATC, SIAOCC as needed",medical:"CIC, Tele-Medical, ATC (PAN PAN), SIAOCC",technical:"PM manages ECAM, PF comms ATC, SIAOCC via ACARS",security:"ATC, Security/Police, SIAOCC, cabin crew",cabin:"CIC directly, then brief on implications",operational:"ATC, SIAOCC, passenger PA if delay >10min",weather:"ATC for routing, cabin crew for preparation",atc:"Clear readback, verify, brief crew"};
+    qs.push({q:"Who do you communicate with, and in what order?",opts:[{t:ct[s.ct]||"ATC, cabin crew, SIAOCC — by urgency",sc:3},{t:"PA to passengers first",sc:1},{t:"Handle silently — no need to inform yet",sc:0},{t:"Call company dispatch before any action",sc:0}].sort(()=>Math.random()-.5)});
+    return qs;
+  };
+
+  const gradeS=()=>{
+    const s=flight.scenarios[fIdx];const qs=genQ(s);
+    let tot=0;const mx=qs.length*3;
+    qs.forEach((q,i)=>{if(simChoices[i]!==undefined)tot+=q.opts[simChoices[i]].sc});
+    const pct=mx>0?tot/mx:0;
+    const g=pct>=.9?5:pct>=.7?4:pct>=.5?3:pct>=.3?2:1;
+    return{grade:g,pts:Math.round(SV[s.sv].p*pct),maxPts:SV[s.sv].p,pct,qs};
+  };
+  const submitD=()=>setSimPhase("debrief");
+  const nextS=()=>{
+    const r=gradeS();const ns=fScore+r.pts;setFScore(ns);
+    setFAnswers(p=>[...p,{s:flight.scenarios[fIdx],q:r.grade,pe:r.pts,pm:r.maxPts,text:simText,detail:r}]);
+    setSimChoices({});setSimText("");setSimPhase("decide");
+    if(fIdx+1>=flight.scenarios.length){if(ns>bestScore)setBestScore(ns);setFIdx(fIdx+1)}else setFIdx(fIdx+1);
+  };
+
+  // ─── COMPONENTS ─────────────────────────────────────────────────
+  const h=React.createElement;
+  const Sv=({s})=>h("span",{style:{padding:"2px 6px",borderRadius:4,background:SV[s].c,color:"#fff",fontSize:10,fontWeight:700}},SV[s].l);
+  const Ct=({c})=>{const x=CT[c];return x?h("span",{style:{padding:"2px 6px",borderRadius:4,background:x.c+"20",color:x.c,fontSize:10,fontWeight:600,border:"1px solid "+x.c+"33"}},x.i+" "+x.l):null};
+  const Pts=({s})=>h("span",{style:{padding:"2px 5px",borderRadius:4,background:"#fbbf2420",color:"#fbbf24",fontSize:10,fontWeight:700}},SV[s].p+"pts");
+  const Chips=({codes})=>h("div",{style:{display:"flex",flexWrap:"wrap",gap:3}},codes.map(c=>{const x=C[c];return x?h("span",{key:c,style:{padding:"1px 5px",borderRadius:3,background:x.c+"18",color:x.c,fontSize:9,fontWeight:600}},x.i+c):null}));
+  const Bar=({v,ht=5,c="#3b82f6"})=>h("div",{style:{width:"100%",height:ht,borderRadius:ht,background:"#1e293b",overflow:"hidden"}},h("div",{style:{width:Math.min(v,100)+"%",height:"100%",borderRadius:ht,background:c,transition:"width .4s"}}));
+  const Btn=({children,onClick,primary})=>h("button",{onClick,style:{padding:"10px 20px",borderRadius:8,border:primary?"none":"1px solid #1e3a5f",background:primary?"linear-gradient(135deg,#4f46e5,#7c3aed)":"transparent",color:primary?"#fff":"#93c5fd",fontSize:13,fontWeight:700,cursor:"pointer",minHeight:44}},children);
+  const DocRefs=({rf,warn})=>{const refs=getDocs(rf);return h("div",{style:{background:"#0f1729",borderRadius:8,padding:12,border:"1px solid #1e3a5f"}},h("div",{style:{color:warn?"#f87171":"#93c5fd",fontSize:10,fontWeight:800,textTransform:"uppercase",marginBottom:6}},warn?"📖 MANDATORY STUDY":"📖 Study References"),refs.length>0?refs.map((d,i)=>h("div",{key:i,style:{padding:"6px 8px",background:"#111827",borderRadius:4,marginBottom:3}},h("div",{style:{color:"#e2e8f0",fontSize:11,fontWeight:600}},d.doc),h("div",{style:{color:"#93c5fd",fontSize:10}},d.sec),d.pg?h("div",{style:{color:"#64748b",fontSize:9}},"Page: "+d.pg):null)):h("div",{style:{color:"#64748b",fontSize:10}},rf))};
+
+  const Header=()=>h("div",{style:{background:"linear-gradient(135deg,#0c1426,#1a2744)",padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid #1e3a5f",position:"sticky",top:0,zIndex:100,flexWrap:"wrap",gap:8}},
+    h("div",{style:{display:"flex",alignItems:"center",gap:10}},
+      h("img",{src:"icon-64.png",alt:"A350",style:{width:40,height:40,borderRadius:9}}),
+      h("div",null,h("div",{style:{color:"#e2e8f0",fontSize:14,fontWeight:700}},"A350 Mastery"),h("div",{style:{color:"#64748b",fontSize:9,fontWeight:600,letterSpacing:".05em",textTransform:"uppercase"}},B.length+" Scenarios · Decision Testing"))),
+    h("div",{style:{display:"flex",gap:3,flexWrap:"wrap"}},
+      [{id:"dashboard",l:"Home",i:"📊"},{id:"bank",l:"Bank",i:"📦"},{id:"phases",l:"Phases",i:"✈️"},{id:"program",l:"12Wk",i:"📅"}].map(t=>h("button",{key:t.id,onClick:()=>nav(t.id),style:{padding:"5px 10px",borderRadius:6,border:view===t.id?"1px solid #3b82f6":"1px solid transparent",background:view===t.id?"rgba(59,130,246,.12)":"transparent",color:view===t.id?"#93c5fd":"#64748b",fontSize:11,fontWeight:600,cursor:"pointer",minHeight:36}},t.i+" "+t.l))));
+
+  // ─── DASHBOARD ──────────────────────────────────────────────────
+  const Dashboard=()=>{
+    const dc=Object.keys(done).length;const pc=Math.round((dc/B.length)*100);
+    return h("div",{style:{padding:16}},
+      h("div",{className:"grid-cols-4",style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}},
+        h("div",{style:{background:"linear-gradient(135deg,#1e3a5f,#0f2847)",borderRadius:10,padding:14,border:"1px solid #1e4976"}},h("div",{style:{color:"#64748b",fontSize:9,fontWeight:700,textTransform:"uppercase"}},"Progress"),h("div",{style:{color:"#e2e8f0",fontSize:26,fontWeight:800}},pc+"%"),h(Bar,{v:pc}),h("div",{style:{color:"#94a3b8",fontSize:10,marginTop:4}},dc+"/"+B.length)),
+        h("div",{style:{background:"linear-gradient(135deg,#2d1a1a,#1a0f0f)",borderRadius:10,padding:14,border:"1px solid #5f1e1e"}},h("div",{style:{color:"#64748b",fontSize:9,fontWeight:700,textTransform:"uppercase"}},"Emergencies"),h("div",{style:{color:"#ef4444",fontSize:26,fontWeight:800}},B.filter(s=>s.sv==="emergency").length),h("div",{style:{color:"#94a3b8",fontSize:10}},"30 pts · Memory items")),
+        h("div",{style:{background:"linear-gradient(135deg,#1a1a2e,#0f0f1e)",borderRadius:10,padding:14,border:"1px solid #312e81"}},h("div",{style:{color:"#64748b",fontSize:9,fontWeight:700,textTransform:"uppercase"}},"Categories"),h("div",{style:{color:"#e2e8f0",fontSize:26,fontWeight:800}},Object.keys(CT).length),h("div",{style:{display:"flex",gap:2,flexWrap:"wrap",marginTop:2}},Object.values(CT).map((c,i)=>h("span",{key:i,style:{fontSize:9,color:c.c}},c.i)))),
+        h("div",{style:{background:"linear-gradient(135deg,#3a2a1a,#2a1a0f)",borderRadius:10,padding:14,border:"1px solid #5f3e1e"}},h("div",{style:{color:"#64748b",fontSize:9,fontWeight:700,textTransform:"uppercase"}},"Best Score"),h("div",{style:{color:"#fbbf24",fontSize:26,fontWeight:800}},bestScore||"—"),h("div",{style:{color:"#94a3b8",fontSize:10}},"pts"))),
+      h("div",{style:{background:"linear-gradient(135deg,#1a1a2e,#0f0f1e)",borderRadius:12,padding:20,border:"1px solid #312e81",marginBottom:18}},
+        h("div",{style:{color:"#a5b4fc",fontSize:15,fontWeight:800,marginBottom:6}},"✈️ Flight Simulation — You Decide, Captain"),
+        h("p",{style:{color:"#c7d2fe",fontSize:12,lineHeight:1.6,margin:"0 0 14px"}},"No answers shown. You see the situation, you make the call, then get graded with instructor recommendations."),
+        h("div",{style:{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}},["normal","hard","extreme"].map(d=>h("button",{key:d,onClick:()=>setDiff(d),style:{padding:"6px 14px",borderRadius:6,background:diff===d?"#4f46e5":"#1e293b",color:diff===d?"#fff":"#94a3b8",border:diff===d?"1px solid #6366f1":"1px solid #334155",fontSize:11,fontWeight:700,cursor:"pointer",textTransform:"uppercase",minHeight:36}},d+" ("+(d==="normal"?5:d==="hard"?8:12)+")"))),
+        h(Btn,{onClick:startFlight,primary:true},"✈️ Generate Flight")),
+      h("div",{style:{color:"#e2e8f0",fontSize:13,fontWeight:700,marginBottom:8}},"Categories"),
+      h("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:8}},Object.entries(CT).map(([k,v])=>h("div",{key:k,onClick:()=>{setFCat(k);nav("bank")},style:{background:"#111827",borderRadius:8,padding:12,border:"1px solid "+v.c+"22",cursor:"pointer",minHeight:44}},h("span",{style:{fontSize:18}},v.i),h("div",{style:{color:"#e2e8f0",fontSize:12,fontWeight:700}},v.l),h("div",{style:{color:"#94a3b8",fontSize:10}},B.filter(s=>s.ct===k).length+" scenarios")))));
+  };
+
+  // ─── BANK ───────────────────────────────────────────────────────
+  const Bank=()=>h("div",{style:{padding:16}},
+    h("input",{value:search,onChange:e=>setSearch(e.target.value),placeholder:"Search scenarios...",style:{width:"100%",padding:"10px 14px",borderRadius:8,background:"#1e293b",border:"1px solid #334155",color:"#e2e8f0",fontSize:13,minHeight:44,marginBottom:10}}),
+    h("div",{style:{display:"flex",gap:4,marginBottom:8,flexWrap:"wrap"}},
+      h("button",{onClick:()=>setFCat("all"),style:{padding:"4px 10px",borderRadius:5,background:fCat==="all"?"#3b82f6":"#1e293b",color:fCat==="all"?"#fff":"#94a3b8",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",minHeight:32}},"All"),
+      Object.entries(CT).map(([k,v])=>h("button",{key:k,onClick:()=>setFCat(k),style:{padding:"4px 10px",borderRadius:5,background:fCat===k?v.c+"33":"#1e293b",color:fCat===k?v.c:"#94a3b8",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",minHeight:32,whiteSpace:"nowrap"}},v.i+" "+v.l))),
+    h("div",{style:{display:"flex",gap:4,marginBottom:12,flexWrap:"wrap"}},
+      h("button",{onClick:()=>setFSev("all"),style:{padding:"4px 10px",borderRadius:5,background:fSev==="all"?"#3b82f6":"#1e293b",color:fSev==="all"?"#fff":"#94a3b8",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",minHeight:32}},"All"),
+      Object.entries(SV).map(([k,v])=>h("button",{key:k,onClick:()=>setFSev(k),style:{padding:"4px 10px",borderRadius:5,background:fSev===k?v.c+"33":"#1e293b",color:fSev===k?v.c:"#94a3b8",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",minHeight:32}},v.l))),
+    h("div",{style:{color:"#94a3b8",fontSize:11,marginBottom:8}},filt.length+" scenarios"),
+    h("div",{style:{display:"grid",gap:6}},filt.map(s=>{const ph=P.find(p=>p.id===s.ph);return h("div",{key:s.id,onClick:()=>{setSelScen(s);setView("detail")},style:{background:done[s.id]?"#0f1f14":"#111827",borderRadius:8,padding:"10px 12px",border:"1px solid "+(done[s.id]?"#166534":SV[s.sv].c+"22"),cursor:"pointer",minHeight:44}},h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",{style:{flex:1}},h("div",{style:{color:"#e2e8f0",fontSize:12,fontWeight:600}},(done[s.id]?"✓ ":"")+s.t),h("div",{style:{display:"flex",gap:4,marginTop:3,alignItems:"center",flexWrap:"wrap"}},h("span",{style:{color:ph?.c,fontSize:10}},ph?.i+" "+ph?.n),h(Sv,{s:s.sv}),h(Ct,{c:s.ct}),h(Pts,{s:s.sv}))),h(Chips,{codes:s.cb.slice(0,3)})))})));
+
+  // ─── DETAIL ─────────────────────────────────────────────────────
+  const Detail=()=>{
+    if(!selScen)return null;const s=selScen;const ph=P.find(p=>p.id===s.ph);
+    return h("div",{style:{padding:16,maxWidth:800,margin:"0 auto"}},
+      h("button",{onClick:()=>nav("bank"),style:{color:"#64748b",background:"none",border:"none",fontSize:12,cursor:"pointer",marginBottom:10,minHeight:36}},"← Back"),
+      h("div",{style:{background:"#111827",borderRadius:12,border:"1px solid "+SV[s.sv].c+"33",overflow:"hidden"}},
+        h("div",{style:{padding:"16px 18px",borderBottom:"1px solid "+SV[s.sv].c+"18"}},
+          h("div",{style:{display:"flex",gap:5,alignItems:"center",marginBottom:4,flexWrap:"wrap"}},h("span",{style:{fontSize:16}},ph?.i),h("span",{style:{color:"#94a3b8",fontSize:10}},ph?.n),h(Sv,{s:s.sv}),h(Ct,{c:s.ct}),h(Pts,{s:s.sv})),
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}},
+            h("h2",{style:{color:"#f1f5f9",fontSize:18,fontWeight:800}},s.t),
+            h("button",{onClick:()=>{const n={...done};n[s.id]?delete n[s.id]:n[s.id]=Date.now();setDone(n)},style:{padding:"6px 12px",borderRadius:6,background:done[s.id]?"#166534":"#1e293b",color:done[s.id]?"#4ade80":"#94a3b8",border:"1px solid "+(done[s.id]?"#22c55e":"#334155"),fontSize:11,fontWeight:700,cursor:"pointer",minHeight:36}},done[s.id]?"✓ Reviewed":"Mark Reviewed"))),
+        h("div",{style:{padding:"16px 18px",display:"grid",gap:16}},
+          h("p",{style:{color:"#cbd5e1",fontSize:13,lineHeight:1.7}},s.d),
+          s.m.length>0?h("div",{style:{background:"#1a0f0f",borderRadius:8,border:"1px solid #dc262633",padding:14}},h("div",{style:{color:"#ef4444",fontSize:10,fontWeight:800,marginBottom:6}},"⚡ MEMORY ITEMS"),s.m.map((m,i)=>h("div",{key:i,style:{padding:"5px 8px",background:"#dc262610",borderRadius:4,marginBottom:3,color:"#fca5a5",fontSize:12,fontWeight:600}},i+1+". "+m))):null,
+          h("div",{style:{background:"#0f172a",borderRadius:8,padding:14,border:"1px solid #1e293b"}},h("div",{style:{color:"#94a3b8",fontSize:10,fontWeight:700,marginBottom:4}},"📋 Procedure"),h("p",{style:{color:"#e2e8f0",fontSize:12,lineHeight:1.8}},s.pr),h("div",{style:{color:"#475569",fontSize:9,marginTop:4}},"Ref: "+s.rf)),
+          h("div",null,h("div",{style:{color:"#94a3b8",fontSize:10,fontWeight:700,marginBottom:6}},"🎯 CBTA"),h(Chips,{codes:s.cb})),
+          h("div",{style:{background:"#0f2a1a",borderRadius:8,border:"1px solid #166534",padding:14}},h("div",{style:{color:"#4ade80",fontSize:10,fontWeight:800,marginBottom:4}},"✅ Target Resolution"),h("p",{style:{color:"#86efac",fontSize:12,lineHeight:1.7}},s.rs)),
+          h(DocRefs,{rf:s.rf}),
+          h("div",null,h("div",{style:{color:"#94a3b8",fontSize:10,fontWeight:700,marginBottom:6}},"Self-Assessment"),h("div",{style:{display:"flex",gap:6}},[1,2,3,4,5].map(l=>h("button",{key:l,onClick:()=>setGrades(p=>({...p,[s.id]:l})),style:{flex:1,padding:"10px 4px",borderRadius:7,cursor:"pointer",background:grades[s.id]===l?(l>=4?"#166534":l>=3?"#854d0e":"#991b1b"):"#1e293b",border:"1px solid "+(grades[s.id]===l?(l>=4?"#22c55e":l>=3?"#f59e0b":"#ef4444"):"#334155"),color:grades[s.id]===l?"#fff":"#94a3b8",fontSize:11,fontWeight:700,textAlign:"center",minHeight:48}},h("div",{style:{fontSize:18}},l),h("div",{style:{fontSize:7}},["","Unsatis","Min","Satis","Good","Excel"][l]))))))))
+  };
+
+  // ─── FLIGHT SIM ─────────────────────────────────────────────────
+  const Sim=()=>{
+    if(!flight)return null;
+    const isEnd=fIdx>=flight.scenarios.length;
+    if(isEnd){
+      const mx=flight.scenarios.reduce((a,s)=>a+SV[s.sv].p,0);const pc=Math.round((fScore/mx)*100);
+      return h("div",{style:{padding:16,maxWidth:750,margin:"0 auto"}},
+        h("div",{style:{background:"#111827",borderRadius:14,padding:24,border:"1px solid #1e293b"}},
+          h("div",{style:{textAlign:"center"}},
+            pc>=80?h("img",{src:"icon-192.png",alt:"Captain",style:{width:80,height:80,borderRadius:16}}):h("div",{style:{fontSize:44}},pc>=60?"★★★☆":"★★☆☆"),
+            h("div",{style:{color:"#e2e8f0",fontSize:28,fontWeight:900,marginTop:8}},fScore+"/"+mx+" ("+pc+"%)"),
+            h("div",{style:{color:pc>=80?"#4ade80":pc>=60?"#f59e0b":"#ef4444",fontSize:14,fontWeight:700,marginTop:4}},pc>=80?"COMMAND READY — Decisions Validated!":pc>=60?"Progressing — Review Gaps Below":"Decision Framework Needs Work"),
+            h("div",{style:{color:"#94a3b8",fontSize:11,marginTop:4}},flight.route.f+"→"+flight.route.t+" · "+flight.route.d)),
+          h("div",{style:{marginTop:16,display:"grid",gap:8}},fAnswers.map((a,i)=>{
+            const ph=P.find(p=>p.id===a.s.ph);const fail=a.q<4;const refs=getDocs(a.s.rf);
+            return h("div",{key:i,style:{padding:"12px 14px",borderRadius:8,background:a.q>=4?"#0f2a1a":a.q>=3?"#1a1a0f":"#1a0f0f",border:"1px solid "+(a.q>=4?"#166534":a.q>=3?"#854d0e":"#991b1b"),textAlign:"left"}},
+              h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",marginBottom:fail?6:0}},
+                h("span",{style:{color:"#e2e8f0",fontSize:12,fontWeight:600}},ph?.i+" "+a.s.t),
+                h("div",{style:{display:"flex",gap:4}},h("span",{style:{padding:"2px 6px",borderRadius:4,background:a.q>=4?"#166534":"#991b1b",color:"#fff",fontSize:10,fontWeight:700}},"L"+a.q),h("span",{style:{color:"#fbbf24",fontSize:11,fontWeight:700}},a.pe+"/"+a.pm))),
+              fail?h("div",{style:{padding:"8px 10px",background:"#1a0f1a",borderRadius:6,border:"1px solid #7c3aed33"}},
+                h("div",{style:{color:"#c084fc",fontSize:10,fontWeight:800,marginBottom:4}},"🧠 IMPROVE: "+(a.q<=2?"Fundamental review needed":"Missed key elements")),
+                h("div",{style:{color:"#93c5fd",fontSize:11,lineHeight:1.5,marginBottom:6}},a.s.rs),
+                refs.length>0?h("div",null,h("div",{style:{color:"#f87171",fontSize:9,fontWeight:800,marginBottom:2}},"📖 STUDY:"),refs.map((d,j)=>h("div",{key:j,style:{color:"#94a3b8",fontSize:9}},d.doc+" → "+d.sec))):null):
+              h("div",{style:{color:"#4ade80",fontSize:10,marginTop:4}},"✓ Sound decision making"))})),
+          h("div",{style:{display:"flex",gap:8,justifyContent:"center",marginTop:20,flexWrap:"wrap"}},h(Btn,{onClick:startFlight,primary:true},"✈️ New Flight"),h(Btn,{onClick:()=>nav("dashboard")},"Dashboard"))))
+    }
+    const s=flight.scenarios[fIdx];const ph=P.find(p=>p.id===s.ph);const prog=(fIdx/flight.scenarios.length)*100;const qs=genQ(s);
+    // DECIDE PHASE
+    if(simPhase==="decide"){
+      return h("div",{style:{padding:16,maxWidth:800,margin:"0 auto"}},
+        h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap"}},
+          h("span",{style:{color:"#a5b4fc",fontSize:11,fontWeight:600}},flight.route.f+"→"+flight.route.t+" · "+(fIdx+1)+"/"+flight.scenarios.length),
+          h("span",{style:{color:"#fbbf24",fontSize:12,fontWeight:700}},fScore+"pts")),
+        h(Bar,{v:prog,c:"#4f46e5",ht:3}),
+        h("div",{style:{display:"flex",gap:1,margin:"8px 0"}},P.map(p=>h("div",{key:p.id,style:{flex:1,height:3,borderRadius:2,background:p.id===s.ph?p.c:flight.scenarios.some(x=>x.ph===p.id)?p.c+"44":"#1e293b"}}))),
+        h("div",{style:{background:"#111827",borderRadius:12,border:"1px solid "+SV[s.sv].c+"44",overflow:"hidden",marginTop:8}},
+          h("div",{style:{padding:"14px 16px",borderBottom:"1px solid "+SV[s.sv].c+"22"}},
+            h("div",{style:{display:"flex",gap:5,alignItems:"center",marginBottom:4,flexWrap:"wrap"}},h("span",{style:{fontSize:14}},ph?.i),h("span",{style:{color:"#94a3b8",fontSize:10}},ph?.n+" · ~"+ph?.s+"min"),h(Sv,{s:s.sv}),h(Ct,{c:s.ct}),h(Pts,{s:s.sv})),
+            h("h3",{style:{color:"#f1f5f9",fontSize:16,fontWeight:800}},s.t)),
+          h("div",{style:{padding:"14px 16px",display:"grid",gap:14}},
+            h("div",{style:{background:"#0f172a",borderRadius:8,padding:14,border:"1px solid #f59e0b33"}},
+              h("div",{style:{color:"#f59e0b",fontSize:10,fontWeight:800,textTransform:"uppercase",marginBottom:6}},"⚠️ SITUATION — You are the Commander. Decide."),
+              h("p",{style:{color:"#e2e8f0",fontSize:13,lineHeight:1.8}},s.d)),
+            qs.map((q,qi)=>h("div",{key:qi,style:{background:"#0a0f1e",borderRadius:8,padding:14,border:"1px solid #1e3a5f"}},
+              h("div",{style:{color:"#e2e8f0",fontSize:12,fontWeight:700,marginBottom:8}},"Q"+(qi+1)+": "+q.q),
+              h("div",{style:{display:"grid",gap:6}},q.opts.map((o,oi)=>h("button",{key:oi,onClick:()=>setSimChoices(p=>({...p,[qi]:oi})),style:{padding:"10px 14px",borderRadius:8,border:simChoices[qi]===oi?"2px solid #6366f1":"1px solid #334155",background:simChoices[qi]===oi?"#4f46e515":"#111827",color:simChoices[qi]===oi?"#c7d2fe":"#cbd5e1",fontSize:12,textAlign:"left",cursor:"pointer",lineHeight:1.5,minHeight:44}},o.t))))),
+            h("div",{style:{background:"#0a0f1e",borderRadius:8,padding:14,border:"1px solid #1e3a5f"}},
+              h("div",{style:{color:"#e2e8f0",fontSize:12,fontWeight:700,marginBottom:6}},"Your action plan as Commander:"),
+              h("textarea",{value:simText,onChange:e=>setSimText(e.target.value),placeholder:"I would first... Then coordinate with... My priority is...",style:{width:"100%",minHeight:80,padding:10,borderRadius:6,background:"#111827",border:"1px solid #334155",color:"#e2e8f0",fontSize:12,lineHeight:1.6,resize:"vertical",fontFamily:"inherit"}})),
+            h("button",{onClick:submitD,disabled:Object.keys(simChoices).length<qs.length,style:{padding:"14px 24px",borderRadius:10,background:Object.keys(simChoices).length>=qs.length?"linear-gradient(135deg,#4f46e5,#7c3aed)":"#1e293b",color:Object.keys(simChoices).length>=qs.length?"#fff":"#475569",border:"none",fontSize:14,fontWeight:800,cursor:Object.keys(simChoices).length>=qs.length?"pointer":"not-allowed",minHeight:48}},Object.keys(simChoices).length>=qs.length?"Submit My Decision":"Answer all questions ("+Object.keys(simChoices).length+"/"+qs.length+")"))))
+    }
+    // DEBRIEF PHASE
+    const result=gradeS();const gc=result.grade>=4?"#4ade80":result.grade>=3?"#f59e0b":"#ef4444";const refs=getDocs(s.rf);
+    return h("div",{style:{padding:16,maxWidth:800,margin:"0 auto"}},
+      h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:6}},
+        h("span",{style:{color:"#a5b4fc",fontSize:11,fontWeight:600}},"Debrief · "+(fIdx+1)+"/"+flight.scenarios.length),
+        h("span",{style:{color:gc,fontSize:13,fontWeight:800}},"Level "+result.grade+" · "+result.pts+"/"+result.maxPts+"pts")),
+      h("div",{style:{background:"#111827",borderRadius:12,border:"1px solid "+gc+"44",overflow:"hidden"}},
+        h("div",{style:{padding:"16px 18px",borderBottom:"1px solid "+gc+"22",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          h("div",null,h("div",{style:{color:"#94a3b8",fontSize:10}},ph?.i+" "+ph?.n),h("h3",{style:{color:"#f1f5f9",fontSize:16,fontWeight:800,margin:"4px 0 0"}},s.t)),
+          h("div",{style:{textAlign:"center"}},h("div",{style:{color:gc,fontSize:28,fontWeight:900}},"L"+result.grade),h("div",{style:{color:gc,fontSize:10}},result.grade>=4?"Good Decision":result.grade>=3?"Adequate":"Needs Work"))),
+        h("div",{style:{padding:"16px 18px",display:"grid",gap:14}},
+          h("div",{style:{color:"#e2e8f0",fontSize:12,fontWeight:700}},"Decision Analysis"),
+          result.qs.map((q,qi)=>{
+            const chosen=simChoices[qi];const opt=chosen!==undefined?q.opts[chosen]:null;
+            const correct=q.opts.find(o=>o.sc===3);const ok=opt&&opt.sc===3;
+            return h("div",{key:qi,style:{background:ok?"#0f2a1a":"#1a0f0f",borderRadius:8,padding:12,border:"1px solid "+(ok?"#166534":"#991b1b")}},
+              h("div",{style:{color:"#94a3b8",fontSize:10,fontWeight:700,marginBottom:4}},"Q"+(qi+1)+": "+q.q),
+              h("div",{style:{display:"flex",alignItems:"flex-start",gap:6}},
+                h("span",{style:{color:ok?"#4ade80":"#ef4444",fontSize:14}},ok?"✓":"✗"),
+                h("div",null,
+                  h("div",{style:{color:ok?"#4ade80":"#fca5a5",fontSize:12,fontWeight:600}},"Your answer: "+(opt?opt.t:"-")),
+                  ok?null:h("div",{style:{color:"#4ade80",fontSize:12,fontWeight:600,marginTop:4}},"✓ Correct: "+correct.t))),
+              opt&&opt.sc===1?h("div",{style:{color:"#f59e0b",fontSize:10,marginTop:4,padding:"4px 8px",background:"#854d0e22",borderRadius:4}},"⚠️ Acceptable but not optimal — the best response addresses the highest priority first."):null)
+          }),
+          h("div",{style:{background:"#0f172a",borderRadius:8,padding:14,border:"1px solid #1e3a5f"}},
+            h("div",{style:{color:"#93c5fd",fontSize:10,fontWeight:800,marginBottom:6}},"📋 Correct Procedure (SIA/Airbus)"),
+            h("p",{style:{color:"#e2e8f0",fontSize:12,lineHeight:1.8}},s.pr)),
+          s.m.length>0?h("div",{style:{background:"#1a0f0f",borderRadius:8,border:"1px solid #dc262633",padding:12}},h("div",{style:{color:"#ef4444",fontSize:10,fontWeight:800,marginBottom:4}},"⚡ MEMORY ITEMS"),s.m.map((m,i)=>h("div",{key:i,style:{color:"#fca5a5",fontSize:11,fontWeight:600}},i+1+". "+m))):null,
+          simText?h("div",{style:{background:"#0a0f1e",borderRadius:8,padding:12,border:"1px solid #334155"}},h("div",{style:{color:"#94a3b8",fontSize:10,fontWeight:700,marginBottom:4}},"Your Plan:"),h("p",{style:{color:"#cbd5e1",fontSize:11,fontStyle:"italic"}},simText),h("div",{style:{color:"#4ade80",fontSize:10,fontWeight:700,marginTop:8}},"Model Answer:"),h("p",{style:{color:"#86efac",fontSize:11,lineHeight:1.5}},s.rs)):null,
+          result.grade<4?h("div",{style:{background:"#1a0f1a",borderRadius:8,padding:14,border:"1px solid #7c3aed44"}},
+            h("div",{style:{color:"#c084fc",fontSize:11,fontWeight:800,marginBottom:6}},"🧠 Instructor Recommendation"),
+            h("p",{style:{color:"#e2e8f0",fontSize:12,lineHeight:1.7}},result.grade<=2?"Decision framework has gaps. Focus on: 1) FIRST PRIORITY always (fly/safety). 2) Correct SEQUENCE (memory→ECAM→QRH). 3) COMMUNICATE right people, right time. 4) DECIDE on safety, not schedule.":"Approach needs refinement. Focus on: 1) Speed of recognition. 2) Correct PRIORITIZATION. 3) COMPLETENESS of communication."),
+            h("div",{style:{color:"#94a3b8",fontSize:11,marginTop:8}},"CBTA to develop: ",s.cb.map(c=>C[c]?.i+" "+c).join(", "))):null,
+          h(DocRefs,{rf:s.rf,warn:result.grade<4}),
+          h("button",{onClick:nextS,style:{padding:"14px 24px",borderRadius:10,background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"#fff",border:"none",fontSize:14,fontWeight:800,cursor:"pointer",minHeight:48,width:"100%"}},fIdx+1>=flight.scenarios.length?"Complete Flight → Results":"Next Scenario →"))))
+  };
+
+  // ─── PHASES ─────────────────────────────────────────────────────
+  const Phases=()=>h("div",{style:{padding:16}},
+    h("div",{style:{color:"#e2e8f0",fontSize:14,fontWeight:700,marginBottom:10}},"Flight Phases"),
+    h("div",{style:{display:"grid",gap:8}},P.map(ph=>{
+      const sc=B.filter(s=>s.ph===ph.id);const d=sc.filter(s=>done[s.id]).length;const isO=selPhase===ph.id;
+      return h("div",{key:ph.id,style:{background:"#111827",borderRadius:10,border:"1px solid "+(isO?ph.c+"55":"#1e293b"),overflow:"hidden"}},
+        h("div",{onClick:()=>setSelPhase(isO?null:ph.id),style:{padding:"12px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",minHeight:48}},
+          h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("span",{style:{fontSize:18}},ph.i),h("div",null,h("div",{style:{color:"#e2e8f0",fontSize:13,fontWeight:700}},ph.n),h("div",{style:{color:"#64748b",fontSize:10}},sc.length+" scenarios · "+d+" done"))),
+          h("span",{style:{color:"#64748b",transform:isO?"rotate(180deg)":"",transition:"transform .2s"}},"▾")),
+        isO?h("div",{style:{padding:"0 14px 12px",display:"grid",gap:4}},sc.map(s=>h("div",{key:s.id,onClick:()=>{setSelScen(s);setView("detail")},style:{padding:"8px 10px",borderRadius:6,background:"#0f1729",border:"1px solid "+SV[s.sv].c+"18",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",minHeight:40}},h("span",{style:{color:"#e2e8f0",fontSize:11,fontWeight:600}},(done[s.id]?"✓ ":"")+s.t),h("div",{style:{display:"flex",gap:4}},h(Sv,{s:s.sv}),h(Ct,{c:s.ct}))))):null)})));
+
+  // ─── PROGRAM ────────────────────────────────────────────────────
+  const WK=[{w:1,t:"Foundation & Ground Ops",p:["preflight","before_start"]},{w:2,t:"Engine Start & Config",p:["engine_start","after_start"]},{w:3,t:"Taxi & Pre-Takeoff",p:["taxi_out"]},{w:4,t:"Takeoff Critical I",p:["takeoff"]},{w:5,t:"Takeoff Critical II",p:["takeoff","initial_climb"]},{w:6,t:"Initial Climb & Climb",p:["initial_climb","climb"]},{w:7,t:"Climb & Cruise I",p:["climb","cruise"]},{w:8,t:"Cruise Operations",p:["cruise"]},{w:9,t:"Cruise & Descent",p:["cruise","descent"]},{w:10,t:"Approach",p:["approach"]},{w:11,t:"Landing",p:["landing","after_landing"]},{w:12,t:"Integration & Command",p:["after_landing"]}];
+  const Program=()=>h("div",{style:{padding:16}},
+    h("div",{style:{color:"#e2e8f0",fontSize:14,fontWeight:700,marginBottom:4}},"12-Week Command Training"),
+    h("p",{style:{color:"#94a3b8",fontSize:11,marginBottom:14}},"Calibrated for 19yrs experience, 10yrs A350-900."),
+    h("div",{style:{display:"grid",gap:8}},WK.map(w=>{
+      const sc=B.filter(s=>w.p.includes(s.ph));const d=sc.filter(s=>done[s.id]).length;
+      return h("div",{key:w.w,style:{background:"#111827",borderRadius:10,padding:14,border:"1px solid #1e293b"}},
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
+          h("div",{style:{display:"flex",alignItems:"center",gap:6}},h("span",{style:{background:d===sc.length&&sc.length?"#166534":"#1e293b",color:d===sc.length&&sc.length?"#4ade80":"#94a3b8",padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:800}},"W"+w.w),h("span",{style:{color:"#e2e8f0",fontSize:12,fontWeight:700}},w.t)),
+          h("span",{style:{color:"#64748b",fontSize:10}},d+"/"+sc.length)),
+        h(Bar,{v:sc.length?(d/sc.length)*100:0,c:d===sc.length&&sc.length?"#22c55e":"#3b82f6"}))})));
+
+  // ─── RENDER ─────────────────────────────────────────────────────
+  return h("div",{className:"safe-bottom",style:{minHeight:"100vh",minHeight:"100dvh",background:"#0a0f1e"}},
+    h(Header,null),
+    h("div",{style:{maxWidth:1000,margin:"0 auto",paddingBottom:32}},
+      view==="dashboard"?h(Dashboard,null):null,
+      view==="bank"?h(Bank,null):null,
+      view==="detail"?h(Detail,null):null,
+      view==="sim"?h(Sim,null):null,
+      view==="phases"?h(Phases,null):null,
+      view==="program"?h(Program,null):null))
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').then(r=>console.log('SW registered')).catch(e=>console.warn('SW failed',e))}
+</script>
+</body>
+</html>
