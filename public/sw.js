@@ -1,4 +1,4 @@
-const CACHE_NAME = 'a350-mastery-v4.1';
+const CACHE_NAME = 'a350-mastery-v4.2';
 const ASSETS = [
   '/',
   '/index.html',
